@@ -10,35 +10,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Copy files via SCP
-        uses: appleboy/scp-action@master
+        uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
-          # If using password instead of key, use: password: ${{ secrets.PASSWORD }}
+          host: "72.60.42.121"
+          username: "root"
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "."
-          target: "/home/${{ secrets.USERNAME }}/cardgame"
-          rm: true # Clean target before copy (optional, be careful)
+          target: "~/cardgame-app"
+          rm: true
 
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@master
+      - name: Execute remote commands via SSH
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
-          # If using password instead of key, use: password: ${{ secrets.PASSWORD }}
+          host: "72.60.42.121"
+          username: "root"
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /home/${{ secrets.USERNAME }}/cardgame
+            set -e
+            cd ~/cardgame-app
+            # Create .env for docker compose
+            echo "NEXT_PUBLIC_API_URL=http://72.60.42.121:5004" > .env
+            echo "NEXT_PUBLIC_SOCKET_URL=http://72.60.42.121:5004" >> .env
             
-            # Create .env file with server IP
-            echo "NEXT_PUBLIC_API_URL=http://${{ secrets.HOST }}:5004" > .env
-            echo "NEXT_PUBLIC_SOCKET_URL=http://${{ secrets.HOST }}:5004" >> .env
+            # Ensure docker compose exists
+            docker compose version || (echo "Docker Compose not found" && exit 1)
             
-            # Stop and remove old containers
+            # Stop existing containers
             docker compose down
             
-            # Start new containers
-            docker compose up -d --build
+            # Build fresh
+            docker compose build --no-cache
+            
+            # Start containers
+            docker compose up -d
+            
+            # Optional: prune unused images
+            docker image prune -f
