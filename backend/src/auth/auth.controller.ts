@@ -1,5 +1,5 @@
 import { Controller, Request, Post, UseGuards, Body, Res } from '@nestjs/common';
-import { Response } from 'express';
+import type { Response } from 'express';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -7,7 +7,7 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() req, @Res({ passthrough: true }) response: Response) {
+  async login(@Body() req: { email: string; password: string }, @Res({ passthrough: true }) response: Response) {
     const user = await this.authService.validateUser(req.email, req.password);
     if (!user) {
         throw new Error('Invalid credentials');
@@ -25,7 +25,7 @@ export class AuthController {
   }
 
   @Post('register')
-  async register(@Body() req) {
+  async register(@Body() req: { email: string; password: string; username?: string }) {
     return this.authService.register(req);
   }
 
