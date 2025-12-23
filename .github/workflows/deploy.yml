@@ -31,15 +31,23 @@ jobs:
           script: |
             set -e
             cd ~/cardgame-app
+            
+            # Completely remove old deployment (containers, volumes, networks)
+            docker compose down -v --remove-orphans 2>/dev/null || true
+            
+            # Remove any dangling containers with cardgame in name
+            docker ps -a | grep cardgame | awk '{print $1}' | xargs -r docker rm -f 2>/dev/null || true
+            
             # Create .env for docker compose
             echo "NEXT_PUBLIC_API_URL=http://72.60.42.121:5004" > .env
             echo "NEXT_PUBLIC_SOCKET_URL=http://72.60.42.121:5004" >> .env
+            # PostgreSQL credentials (use existing server PostgreSQL)
+            echo "POSTGRES_USER=postgres" >> .env
+            echo "POSTGRES_PASSWORD=your_postgres_password" >> .env
+            echo "POSTGRES_DB=cardgame" >> .env
             
             # Ensure docker compose exists
             docker compose version || (echo "Docker Compose not found" && exit 1)
-            
-            # Stop existing containers
-            docker compose down
             
             # Build fresh
             docker compose build --no-cache
@@ -47,5 +55,7 @@ jobs:
             # Start containers
             docker compose up -d
             
-            # Optional: prune unused images
+            # Prune unused images and networks
+            docker image prune -f
+            docker network prune -f
             docker image prune -f
