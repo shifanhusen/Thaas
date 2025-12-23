@@ -1,0 +1,44 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Copy files via SCP
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          # If using password instead of key, use: password: ${{ secrets.PASSWORD }}
+          source: "."
+          target: "/home/${{ secrets.USERNAME }}/cardgame"
+          rm: true # Clean target before copy (optional, be careful)
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.KEY }}
+          # If using password instead of key, use: password: ${{ secrets.PASSWORD }}
+          script: |
+            cd /home/${{ secrets.USERNAME }}/cardgame
+            
+            # Create .env file with server IP
+            echo "NEXT_PUBLIC_API_URL=http://${{ secrets.HOST }}:5004" > .env
+            echo "NEXT_PUBLIC_SOCKET_URL=http://${{ secrets.HOST }}:5004" >> .env
+            
+            # Stop and remove old containers
+            docker compose down
+            
+            # Start new containers
+            docker compose up -d --build
