@@ -31,7 +31,7 @@ export class GameService {
       currentTrick: [],
       leadingSuit: null,
       gameStatus: 'waiting',
-      winner: null,
+      winners: [],
     };
     this.rooms.set(roomId, gameState);
     return gameState;

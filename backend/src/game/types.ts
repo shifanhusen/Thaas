@@ -21,5 +21,5 @@ export interface GameState {
   currentTrick: { playerId: string; card: Card }[];
   leadingSuit: Suit | null;
   gameStatus: 'waiting' | 'playing' | 'finished';
-  winner: Player | null;
+  winners: Player[]; // List of players in order of finishing
 }

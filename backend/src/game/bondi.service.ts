@@ -64,13 +64,34 @@ export class BondiService {
       return this.resolveInterruptedTrick(gameState);
     }
 
-    const activePlayers = gameState.players.filter(p => !p.isSpectator && p.hand.length > 0);
+    const activePlayers = gameState.players.filter(p => !p.isSpectator);
     if (gameState.currentTrick.length === activePlayers.length) {
       return this.resolveCompleteTrick(gameState);
     }
 
     gameState.currentPlayerIndex = this.getNextPlayerIndex(gameState);
     return gameState;
+  }
+
+  private checkWinCondition(gameState: GameState) {
+    // Check for new finishers
+    gameState.players.forEach(p => {
+      if (p.hand.length === 0 && !p.isSpectator) {
+        if (!gameState.winners.some(w => w.id === p.id)) {
+             gameState.winners.push(p);
+             p.isSpectator = true;
+        }
+      }
+    });
+
+    // Check if game over (1 or 0 active players left)
+    const activePlayers = gameState.players.filter(p => !p.isSpectator);
+    if (activePlayers.length <= 1) {
+      if (activePlayers.length === 1) {
+        gameState.winners.push(activePlayers[0]); // Last player
+      }
+      gameState.gameStatus = 'finished';
+    }
   }
 
   private resolveInterruptedTrick(gameState: GameState): GameState {
@@ -85,12 +106,7 @@ export class BondiService {
     gameState.leadingSuit = null;
     gameState.currentPlayerIndex = winnerIndex;
 
-    // Check if anyone (who didn't pick up) has 0 cards
-    const finishedPlayer = gameState.players.find(p => p.hand.length === 0);
-    if (finishedPlayer) {
-      gameState.winner = finishedPlayer;
-      gameState.gameStatus = 'finished';
-    }
+    this.checkWinCondition(gameState);
 
     return gameState;
   }
@@ -104,15 +120,20 @@ export class BondiService {
     gameState.currentTrick = [];
     gameState.leadingSuit = null;
 
-    // Check if anyone has 0 cards (including the winner of this trick)
-    const finishedPlayer = gameState.players.find(p => p.hand.length === 0);
-    if (finishedPlayer) {
-      gameState.winner = finishedPlayer;
-      gameState.gameStatus = 'finished';
-      return gameState;
+    // Check for finishers
+    this.checkWinCondition(gameState);
+
+    if (gameState.gameStatus === 'finished') return gameState;
+
+    if (winner.isSpectator) {
+        // Winner finished, pass lead to next active player
+        // We temporarily set index to winner to find the next person from them
+        gameState.currentPlayerIndex = winnerIndex;
+        gameState.currentPlayerIndex = this.getNextPlayerIndex(gameState);
+    } else {
+        gameState.currentPlayerIndex = winnerIndex;
     }
 
-    gameState.currentPlayerIndex = winnerIndex;
     return gameState;
   }
   
@@ -135,7 +156,7 @@ export class BondiService {
   private getNextPlayerIndex(gameState: GameState): number {
       let nextIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
       let count = 0;
-      while ((gameState.players[nextIndex].isSpectator || gameState.players[nextIndex].hand.length === 0) && count < gameState.players.length) {
+      while (gameState.players[nextIndex].isSpectator && count < gameState.players.length) {
           nextIndex = (nextIndex + 1) % gameState.players.length;
           count++;
       }

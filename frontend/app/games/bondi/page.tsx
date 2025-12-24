@@ -24,7 +24,7 @@ interface GameState {
   currentTrick: { playerId: string; card: Card }[];
   leadingSuit: string | null;
   gameStatus: 'waiting' | 'playing' | 'finished';
-  winner: Player | null;
+  winners: Player[];
 }
 
 export default function BondiGamePage() {
@@ -241,9 +241,90 @@ export default function BondiGamePage() {
     );
   }
 
+  // --- RENDER: GAME OVER SCREEN ---
+  if (gameState.gameStatus === 'finished') {
+    const myId = socket?.id;
+    const isWinner = gameState.winners.some(w => w.id === myId);
+    
+    // Identify the loser (the one player not in the winners list)
+    const loser = gameState.players.find(p => !gameState.winners.some(w => w.id === p.id));
+
+    return (
+      <div className="min-h-screen bg-[#020617] flex items-center justify-center text-white p-4">
+        <div className="bg-[#0f172a] p-8 md:p-12 rounded-[2rem] border border-gray-800 text-center shadow-2xl max-w-2xl w-full relative overflow-hidden">
+           <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-yellow-500 via-red-500 to-purple-500"></div>
+           
+           <div className="mb-8">
+             <div className="text-6xl mb-4 animate-bounce">{isWinner ? '🏆' : '💀'}</div>
+             <h1 className="text-4xl md:text-6xl font-black tracking-tighter mb-2">
+               GAME OVER
+             </h1>
+             <p className="text-gray-400 font-bold tracking-widest uppercase">
+               Final Standings
+             </p>
+           </div>
+
+           <div className="space-y-4 mb-8">
+              {/* Winners List */}
+              {gameState.winners.map((winner, index) => (
+                <div key={winner.id} className="flex items-center justify-between bg-gradient-to-r from-yellow-500/10 to-transparent p-4 rounded-xl border-l-4 border-yellow-400">
+                  <div className="flex items-center gap-4">
+                    <span className="text-3xl font-black text-yellow-400">#{index + 1}</span>
+                    <div className="text-left">
+                      <div className="text-xl font-bold text-white">{winner.name}</div>
+                      <div className="text-xs text-yellow-500/60 font-bold tracking-wider">FINISHED</div>
+                    </div>
+                  </div>
+                  {winner.id === myId && (
+                    <span className="bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">YOU</span>
+                  )}
+                </div>
+              ))}
+              
+              {/* The Loser */}
+              {loser && (
+                 <div className="flex items-center justify-between bg-gradient-to-r from-red-500/10 to-transparent p-4 rounded-xl border-l-4 border-red-500">
+                  <div className="flex items-center gap-4">
+                    <span className="text-3xl font-black text-red-500">💩</span>
+                    <div className="text-left">
+                      <div className="text-xl font-bold text-white">{loser.name}</div>
+                      <div className="text-xs text-red-500/60 font-bold tracking-wider">LAST MAN STANDING</div>
+                    </div>
+                  </div>
+                  {loser.id === myId && (
+                    <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">YOU</span>
+                  )}
+                </div>
+              )}
+           </div>
+
+           <button 
+             onClick={() => window.location.reload()}
+             className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-900/20"
+           >
+             PLAY AGAIN
+           </button>
+        </div>
+      </div>
+    );
+  }
+
   // --- RENDER: GAME SCREEN ---
   return (
     <div className="min-h-screen bg-[#0f172a] text-white overflow-hidden relative perspective-1000">
+      {/* Spectator Indicator */}
+      {myPlayer?.isSpectator && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-500">
+          <div className="bg-black/60 backdrop-blur-md px-6 py-3 rounded-full border border-white/10 flex items-center gap-3 shadow-2xl">
+            <span className="text-2xl animate-pulse">🍿</span>
+            <div>
+              <div className="font-bold text-white text-sm">SPECTATOR MODE</div>
+              <div className="text-xs text-white/50">Waiting for others to finish...</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Background Stars/Grid */}
       <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10 pointer-events-none"></div>
 
@@ -315,6 +396,11 @@ export default function BondiGamePage() {
                   YOUR TURN
                 </div>
               )}
+              {myPlayer?.isSpectator && (
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-green-500 text-white font-bold px-3 py-1 rounded-full text-sm whitespace-nowrap shadow-lg">
+                  FINISHED! 🏆
+                </div>
+              )}
             </div>
             
             {/* My Hand - Responsive Layout */}
@@ -343,7 +429,7 @@ export default function BondiGamePage() {
             </div>
 
             {/* Desktop: Fanned Hand */}
-            <div className="hidden md:flex justify-center items-end h-48 perspective-500 w-full px-4 mb-8">
+            <div className="hidden md:flex justify-center items-end h-56 perspective-500 w-full px-4 -mb-12">
               {sortHand(myPlayer?.hand || []).map((card, i, arr) => {
                 const offset = i - (arr.length - 1) / 2;
                 const rotation = offset * 3; 
@@ -352,7 +438,7 @@ export default function BondiGamePage() {
                 return (
                   <div
                     key={i}
-                    className="group relative w-32 h-44 -ml-16 first:ml-0 transition-all duration-300 hover:z-[100] hover:-translate-y-16 hover:scale-110"
+                    className="group relative w-40 h-56 -ml-20 first:ml-0 transition-all duration-300 hover:z-[100] hover:-translate-y-24 hover:scale-110"
                     style={{
                       transform: `rotate(${rotation}deg) translateY(${translateY}px)`,
                       zIndex: i
@@ -361,7 +447,7 @@ export default function BondiGamePage() {
                     <PlayingCard
                       card={card}
                       onClick={() => isMyTurn && playCard(card)}
-                      className="w-full h-full shadow-2xl cursor-pointer"
+                      className="w-full h-full shadow-2xl cursor-pointer rounded-xl"
                       style={{ backgroundSize: '100% 100%' }}
                     />
                   </div>
