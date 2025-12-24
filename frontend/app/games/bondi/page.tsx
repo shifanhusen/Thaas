@@ -318,58 +318,53 @@ export default function BondiGamePage() {
             </div>
             
             {/* My Hand - Responsive Layout */}
-            {/* Mobile: Overlapped Row */}
-            <div className="md:hidden w-full flex justify-center items-end h-32 px-2 pb-4 relative">
-              {sortHand(myPlayer?.hand || []).map((card, i, arr) => {
-                // Calculate overlap for mobile
-                const totalWidth = Math.min(window.innerWidth - 40, arr.length * 40); // Max width or spread
-                const startX = -(totalWidth / 2);
-                const step = totalWidth / (arr.length || 1);
-                const x = startX + (i * step) + (step / 2);
-                
-                return (
+            {/* Mobile: Scrollable Row (Like Screenshot) */}
+            <div className="md:hidden w-full overflow-x-auto px-4 pb-4 flex items-end gap-2 no-scrollbar snap-x">
+              <div className="flex space-x-[-30px] px-4 min-w-min"> {/* Negative margin for overlap */}
+                {sortHand(myPlayer?.hand || []).map((card, i) => (
                   <PlayingCard
                     key={i}
                     card={card}
                     onClick={() => isMyTurn && playCard(card)}
                     className={`
-                      w-20 h-28 absolute bottom-0
-                      transform transition-all duration-300
-                      shadow-lg
+                      w-24 h-36 flex-shrink-0
+                      transform transition-all duration-200
+                      shadow-lg rounded-xl border border-gray-200
+                      ${isMyTurn ? 'active:translate-y-[-20px]' : ''}
                     `}
                     style={{ 
                       zIndex: i,
-                      left: '50%',
-                      marginLeft: `${x}px`,
-                      transform: isMyTurn ? `translateY(${i === arr.length - 1 ? -10 : 0}px)` : 'none' // Simple pop for last card or active
+                      // Ensure full visibility of the card image
+                      backgroundSize: '100% 100%' 
                     }}
                   />
-                );
-              })}
+                ))}
+              </div>
             </div>
 
             {/* Desktop: Fanned Hand */}
-            <div className="hidden md:flex justify-center items-end h-40 perspective-500 w-full px-4 mb-8">
+            <div className="hidden md:flex justify-center items-end h-48 perspective-500 w-full px-4 mb-8">
               {sortHand(myPlayer?.hand || []).map((card, i, arr) => {
                 const offset = i - (arr.length - 1) / 2;
-                const rotation = offset * 3; // Reduced rotation
-                const translateY = Math.abs(offset) * 2; // Reduced arc
+                const rotation = offset * 3; 
+                const translateY = Math.abs(offset) * 5;
 
                 return (
-                  <PlayingCard
+                  <div
                     key={i}
-                    card={card}
-                    onClick={() => isMyTurn && playCard(card)}
-                    className={`
-                      w-28 h-40 
-                      transform transition-all duration-300 hover:-translate-y-16 hover:scale-110 hover:z-50
-                      -ml-16 first:ml-0 cursor-pointer shadow-2xl
-                    `}
+                    className="group relative w-32 h-44 -ml-16 first:ml-0 transition-all duration-300 hover:z-[100] hover:-translate-y-16 hover:scale-110"
                     style={{
                       transform: `rotate(${rotation}deg) translateY(${translateY}px)`,
                       zIndex: i
                     }}
-                  />
+                  >
+                    <PlayingCard
+                      card={card}
+                      onClick={() => isMyTurn && playCard(card)}
+                      className="w-full h-full shadow-2xl cursor-pointer"
+                      style={{ backgroundSize: '100% 100%' }}
+                    />
+                  </div>
                 );
               })}
             </div>
@@ -416,7 +411,7 @@ function PlayingCard({ card, onClick, style, className }: { card: Card, onClick?
       style={{
         ...style,
         backgroundImage: `url(${imageUrl})`,
-        backgroundSize: 'cover',
+        backgroundSize: '100% 100%', // Ensure full card is visible
         backgroundPosition: 'center',
         backgroundColor: 'white' // Fallback
       }}
