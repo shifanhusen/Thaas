@@ -9,7 +9,7 @@ export class GameService {
 
   constructor(private bondiService: BondiService) {}
 
-  createRoom(host: Player, gameType: string): string {
+  createRoom(host: Player, gameType: string): GameState {
     const roomId = uuidv4();
     const gameState: GameState = {
       roomId,
@@ -21,7 +21,7 @@ export class GameService {
       winner: null,
     };
     this.rooms.set(roomId, gameState);
-    return roomId;
+    return gameState;
   }
 
   joinRoom(roomId: string, player: Player): GameState | null {

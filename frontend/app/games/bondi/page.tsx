@@ -62,6 +62,7 @@ export default function BondiGamePage() {
 
     newSocket.on('roomCreated', (data) => {
       console.log('Room created:', data);
+      setGameState(data);
       setRoomId(data.roomId);
       setJoined(true);
     });
