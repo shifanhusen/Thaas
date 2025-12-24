@@ -308,8 +308,8 @@ export default function BondiGamePage() {
           </div>
 
           {/* My Player (Bottom) */}
-          <div className="absolute bottom-[-60px] md:bottom-[-100px] left-1/2 -translate-x-1/2 flex flex-col items-center z-20 w-full max-w-3xl">
-            <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-b from-blue-600 to-blue-900 rounded-full border-4 border-blue-400 shadow-xl mb-4 relative">
+          <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center z-20">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-b from-blue-600 to-blue-900 rounded-full border-4 border-blue-400 shadow-xl mb-4 relative transform translate-y-8 md:translate-y-0">
               {isMyTurn && (
                 <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-yellow-400 text-black font-bold px-3 py-1 rounded-full animate-bounce text-sm whitespace-nowrap">
                   YOUR TURN
@@ -317,12 +317,43 @@ export default function BondiGamePage() {
               )}
             </div>
             
-            {/* My Hand */}
-            <div className="flex justify-center items-end h-32 md:h-40 perspective-500 w-full px-4">
-              {myPlayer?.hand.map((card, i) => {
-                const offset = i - (myPlayer.hand.length - 1) / 2;
-                const rotation = offset * 5;
-                const translateY = Math.abs(offset) * 5;
+            {/* My Hand - Responsive Layout */}
+            {/* Mobile: Overlapped Row */}
+            <div className="md:hidden w-full flex justify-center items-end h-32 px-2 pb-4 relative">
+              {sortHand(myPlayer?.hand || []).map((card, i, arr) => {
+                // Calculate overlap for mobile
+                const totalWidth = Math.min(window.innerWidth - 40, arr.length * 40); // Max width or spread
+                const startX = -(totalWidth / 2);
+                const step = totalWidth / (arr.length || 1);
+                const x = startX + (i * step) + (step / 2);
+                
+                return (
+                  <PlayingCard
+                    key={i}
+                    card={card}
+                    onClick={() => isMyTurn && playCard(card)}
+                    className={`
+                      w-20 h-28 absolute bottom-0
+                      transform transition-all duration-300
+                      shadow-lg
+                    `}
+                    style={{ 
+                      zIndex: i,
+                      left: '50%',
+                      marginLeft: `${x}px`,
+                      transform: isMyTurn ? `translateY(${i === arr.length - 1 ? -10 : 0}px)` : 'none' // Simple pop for last card or active
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Desktop: Fanned Hand */}
+            <div className="hidden md:flex justify-center items-end h-40 perspective-500 w-full px-4 mb-8">
+              {sortHand(myPlayer?.hand || []).map((card, i, arr) => {
+                const offset = i - (arr.length - 1) / 2;
+                const rotation = offset * 3; // Reduced rotation
+                const translateY = Math.abs(offset) * 2; // Reduced arc
 
                 return (
                   <PlayingCard
@@ -330,9 +361,9 @@ export default function BondiGamePage() {
                     card={card}
                     onClick={() => isMyTurn && playCard(card)}
                     className={`
-                      w-20 h-28 md:w-24 md:h-36 
-                      transform transition-all duration-300 hover:-translate-y-12 hover:scale-110 hover:z-50
-                      -ml-10 md:-ml-12 first:ml-0 cursor-pointer
+                      w-28 h-40 
+                      transform transition-all duration-300 hover:-translate-y-16 hover:scale-110 hover:z-50
+                      -ml-16 first:ml-0 cursor-pointer shadow-2xl
                     `}
                     style={{
                       transform: `rotate(${rotation}deg) translateY(${translateY}px)`,
@@ -350,120 +381,47 @@ export default function BondiGamePage() {
   );
 }
 
-// --- COMPONENTS & HELPERS ---
+// --- HELPERS ---
+
+function sortHand(hand: Card[]) {
+  const suitOrder = { 'D': 0, 'C': 1, 'H': 2, 'S': 3 }; // Diamonds, Clubs, Hearts, Spades
+  const rankOrder: { [key: string]: number } = { 
+    'A': 14, 'K': 13, 'Q': 12, 'J': 11, '10': 10, '9': 9, '8': 8, '7': 7, '6': 6, '5': 5, '4': 4, '3': 3, '2': 2 
+  };
+
+  return [...hand].sort((a, b) => {
+    if (a.suit !== b.suit) return suitOrder[a.suit] - suitOrder[b.suit];
+    return rankOrder[b.rank] - rankOrder[a.rank]; // Descending rank
+  });
+}
 
 function PlayingCard({ card, onClick, style, className }: { card: Card, onClick?: () => void, style?: React.CSSProperties, className?: string }) {
-  const isRed = ['H', 'D'].includes(card.suit);
-  const suitSymbol = getSuitSymbol(card.suit);
-  const rank = card.rank;
-
-  // Helper to render pips
-  const renderPips = () => {
-    if (['J', 'Q', 'K'].includes(rank)) {
-      return (
-        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-20">
-           <div className="text-6xl md:text-7xl font-black">{suitSymbol}</div>
-           <div className="text-xs font-bold tracking-widest mt-2">
-             {rank === 'J' ? 'JACK' : rank === 'Q' ? 'QUEEN' : 'KING'}
-           </div>
-        </div>
-      );
-    }
-
-    if (rank === 'A') {
-      return (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="text-6xl md:text-8xl">{suitSymbol}</div>
-        </div>
-      );
-    }
-
-    const n = parseInt(rank);
-    if (isNaN(n)) return null;
-
-    // Pip Positions (Percentage based)
-    const pips: { t: number, l: number }[] = [];
-    const colL = 25, colM = 50, colR = 75;
-    const rowT = 20, rowM = 50, rowB = 80;
-    const rowTM = 35, rowBM = 65;
-
-    // Logic for standard card layouts
-    if (n >= 2) { pips.push({t: rowT, l: colM}, {t: rowB, l: colM}); } // 2 (Base) - actually 2 is usually top/bottom center
-    if (n === 2) { /* Already covered */ }
-    if (n === 3) { pips.push({t: rowM, l: colM}); }
-    
-    // Overwrite for 4+ (Corners)
-    if (n >= 4) {
-      // Clear previous
-      pips.length = 0;
-      pips.push({t: rowT, l: colL}, {t: rowT, l: colR}, {t: rowB, l: colL}, {t: rowB, l: colR});
-    }
-    
-    if (n === 5) { pips.push({t: rowM, l: colM}); }
-    if (n === 6) { pips.push({t: rowM, l: colL}, {t: rowM, l: colR}); }
-    if (n === 7) { pips.push({t: rowM, l: colL}, {t: rowM, l: colR}, {t: rowTM, l: colM}); }
-    if (n === 8) { pips.push({t: rowM, l: colL}, {t: rowM, l: colR}, {t: rowTM, l: colM}, {t: rowBM, l: colM}); }
-    
-    if (n === 9) {
-      pips.length = 0;
-      // 4 rows of 2 + 1 center
-      [20, 40, 60, 80].forEach(t => pips.push({t, l: colL}, {t, l: colR}));
-      pips.push({t: 50, l: colM});
-      // Wait, 9 is 9 pips. 4*2 + 1 = 9. Correct.
-    }
-    
-    if (n === 10) {
-      pips.length = 0;
-      // 2 columns of 4 + 2 middle
-      [20, 40, 60, 80].forEach(t => pips.push({t, l: colL}, {t, l: colR}));
-      pips.push({t: 30, l: colM}, {t: 70, l: colM});
-    }
-
-    return (
-      <>
-        {pips.map((p, i) => (
-          <div 
-            key={i} 
-            className="absolute text-sm md:text-lg leading-none transform -translate-x-1/2 -translate-y-1/2" 
-            style={{ top: `${p.t}%`, left: `${p.l}%` }}
-          >
-            {suitSymbol}
-          </div>
-        ))}
-      </>
-    );
+  // Map our types to DeckOfCardsAPI format
+  const getCardCode = (c: Card) => {
+    let r = c.rank;
+    if (r === '10') r = '0';
+    return `${r}${c.suit}`;
   };
+
+  const imageUrl = `https://deckofcardsapi.com/static/img/${getCardCode(card)}.png`;
 
   return (
     <div 
       onClick={onClick}
       className={`
-        relative bg-white rounded-lg md:rounded-xl border border-gray-300 
-        flex flex-col justify-between p-1 md:p-2 select-none overflow-hidden
-        ${isRed ? 'text-red-600' : 'text-black'}
+        relative rounded-lg shadow-xl
+        transform transition-all duration-300 select-none
         ${className}
       `}
       style={{
         ...style,
-        boxShadow: '1px 1px 0 #ccc, 2px 2px 0 #ccc, 3px 3px 0 #ccc, 4px 4px 8px rgba(0,0,0,0.4)'
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundColor: 'white' // Fallback
       }}
     >
-       {/* Top Corner */}
-       <div className="flex flex-col items-center leading-none z-10">
-         <span className="font-bold text-sm md:text-lg">{rank}</span>
-         <span className="text-xs md:text-sm">{suitSymbol}</span>
-       </div>
-
-       {/* Center Pips */}
-       <div className="absolute inset-0">
-         {renderPips()}
-       </div>
-
-       {/* Bottom Corner (Rotated) */}
-       <div className="flex flex-col items-center leading-none rotate-180 self-end z-10">
-         <span className="font-bold text-sm md:text-lg">{rank}</span>
-         <span className="text-xs md:text-sm">{suitSymbol}</span>
-       </div>
+      {/* No internal content needed as we use the image */}
     </div>
   );
 }
