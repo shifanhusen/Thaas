@@ -5,66 +5,71 @@ export default function Home() {
     {
       id: 'bondi',
       name: 'Bondi',
-      description: 'A strategic card game where the goal is to lose all your cards. 2-8 players.',
-      players: '2-8',
+      description: 'The classic trick-taking game where strategy meets intuition. Outsmart your opponents and avoid the traps.',
       status: 'Playable',
-    },
-    {
-      id: 'digu',
-      name: 'Digu',
-      description: 'Coming soon.',
-      players: 'TBD',
-      status: 'Coming Soon',
     },
     {
       id: 'dhihaeh',
       name: 'Dhihaeh',
-      description: 'Coming soon.',
-      players: 'TBD',
+      description: 'A fast-paced point-collection game. Coming soon to the platform.',
+      status: 'Coming Soon',
+    },
+    {
+      id: 'digu',
+      name: 'Digu',
+      description: 'The ultimate test of memory and partnership. Currently in development.',
       status: 'Coming Soon',
     },
   ];
 
   return (
-    <main className="min-h-screen bg-gray-900 text-white p-8">
-      <h1 className="text-4xl font-bold text-center mb-12">Card Game Platform</h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-        {games.map((game) => (
-          <div key={game.id} className="bg-gray-800 rounded-lg p-6 shadow-lg hover:shadow-xl transition-shadow border border-gray-700">
-            <h2 className="text-2xl font-bold mb-2">{game.name}</h2>
-            <p className="text-gray-400 mb-4">{game.description}</p>
-            <div className="flex justify-between items-center mb-6">
-              <span className="bg-gray-700 px-3 py-1 rounded text-sm">{game.players} Players</span>
-              <span className={`px-3 py-1 rounded text-sm ${game.status === 'Playable' ? 'bg-green-900 text-green-300' : 'bg-yellow-900 text-yellow-300'}`}>
-                {game.status}
-              </span>
+    <main className="min-h-screen bg-[#020617] text-white p-8 font-sans">
+      <div className="max-w-7xl mx-auto">
+        <header className="mb-16 mt-8">
+          <h1 className="text-7xl font-black tracking-tighter mb-4">THAAS</h1>
+          <p className="text-xl text-gray-400 max-w-2xl">
+            The Maldivian Card Game Platform.
+            <br />
+            Play your favorite classic games with friends or challenge our AI.
+          </p>
+        </header>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {games.map((game) => (
+            <div 
+              key={game.id} 
+              className="bg-[#0f172a] rounded-2xl p-8 border border-gray-800 flex flex-col h-96 relative overflow-hidden group hover:border-gray-600 transition-colors"
+            >
+              <div className="relative z-10 flex flex-col h-full">
+                <h2 className="text-3xl font-bold mb-4">{game.name}</h2>
+                <p className="text-gray-400 mb-8 leading-relaxed">
+                  {game.description}
+                </p>
+                
+                <div className="mt-auto">
+                  {game.status === 'Playable' ? (
+                    <Link 
+                      href={`/games/${game.id}`} 
+                      className="inline-flex items-center bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3 px-6 rounded-full transition-colors"
+                    >
+                      Play Now <span className="ml-2">→</span>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center text-gray-500 font-medium">
+                      <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      COMING SOON
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Decorative gradient glow */}
+              <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl group-hover:bg-blue-500/20 transition-all duration-500" />
             </div>
-            <div className="flex gap-4">
-              <Link href={`/games/${game.id}/rules`} className="flex-1 bg-gray-700 hover:bg-gray-600 text-center py-2 rounded transition-colors">
-                Rules
-              </Link>
-              {game.status === 'Playable' ? (
-                <Link href={`/games/${game.id}`} className="flex-1 bg-blue-600 hover:bg-blue-500 text-center py-2 rounded transition-colors">
-                  Play
-                </Link>
-              ) : (
-                <button disabled className="flex-1 bg-gray-600 text-gray-400 cursor-not-allowed py-2 rounded">
-                  Play
-                </button>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-      
-      <div className="mt-16 max-w-4xl mx-auto bg-gray-800 p-8 rounded-lg border border-gray-700">
-        <h2 className="text-2xl font-bold mb-4">Bondi Rules Summary</h2>
-        <p className="mb-4">
-          Bondi is a game where the objective is to lose all your cards. The player with the Ace of Spades starts.
-          You must follow the suit led. If you cannot follow suit, you play any card, interrupting the trick.
-          The highest card of the leading suit wins the trick. If the trick was interrupted, the winner takes all cards!
-        </p>
-        <Link href="/games/bondi/rules" className="text-blue-400 hover:underline">Read full rules &rarr;</Link>
+          ))}
+        </div>
       </div>
     </main>
   );
