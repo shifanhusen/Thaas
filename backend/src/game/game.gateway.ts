@@ -36,9 +36,11 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   @SubscribeMessage('createRoom')
   createRoom(@MessageBody() data: { name: string; gameType: string }, @ConnectedSocket() client: Socket) {
+    console.log(`createRoom received from ${client.id}:`, data);
     const player = { id: client.id, name: data.name, hand: [], isSpectator: false, socketId: client.id };
     const roomId = this.gameService.createRoom(player, data.gameType);
     client.join(roomId);
+    console.log(`Room created: ${roomId}`);
     return { event: 'roomCreated', data: { roomId } };
   }
 

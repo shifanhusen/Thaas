@@ -33,6 +33,7 @@ export default function BondiGamePage() {
   const [playerName, setPlayerName] = useState('');
   const [roomId, setRoomId] = useState('');
   const [joined, setJoined] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080', {
@@ -45,14 +46,22 @@ export default function BondiGamePage() {
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      console.log('Connected to server');
+      console.log('Connected to server, socket ID:', newSocket.id);
+      setIsConnected(true);
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from server');
+      setIsConnected(false);
     });
 
     newSocket.on('connect_error', (error) => {
       console.error('Connection error:', error);
+      setIsConnected(false);
     });
 
     newSocket.on('roomCreated', (data) => {
+      console.log('Room created:', data);
       setRoomId(data.roomId);
       setJoined(true);
     });
@@ -84,7 +93,16 @@ export default function BondiGamePage() {
   }, []);
 
   const createRoom = () => {
-    if (!socket || !playerName) return;
+    if (!socket || !playerName) {
+      console.error('Socket or playerName missing');
+      return;
+    }
+    if (!socket.connected) {
+      console.error('Socket not connected');
+      alert('Not connected to server. Please wait and try again.');
+      return;
+    }
+    console.log('Emitting createRoom:', { name: playerName, gameType: 'bondi' });
     socket.emit('createRoom', { name: playerName, gameType: 'bondi' });
   };
 
@@ -108,6 +126,10 @@ export default function BondiGamePage() {
       <div className="min-h-screen bg-gray-900 text-white flex items-center justify-center">
         <div className="bg-gray-800 p-8 rounded-lg shadow-lg w-96">
           <h1 className="text-2xl font-bold mb-6 text-center">Play Bondi</h1>
+          <div className="mb-4 text-center">
+            <span className={`inline-block w-3 h-3 rounded-full mr-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+            <span className="text-sm">{isConnected ? 'Connected' : 'Connecting...'}</span>
+          </div>
           <input
             type="text"
             placeholder="Your Name"
@@ -116,7 +138,13 @@ export default function BondiGamePage() {
             onChange={(e) => setPlayerName(e.target.value)}
           />
           <div className="flex gap-4 mb-4">
-            <button onClick={createRoom} className="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded">Create Room</button>
+            <button 
+              onClick={createRoom} 
+              disabled={!isConnected || !playerName}
+              className="flex-1 bg-blue-600 hover:bg-blue-500 py-2 rounded disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              Create Room
+            </button>
           </div>
           <div className="flex gap-2">
             <input
