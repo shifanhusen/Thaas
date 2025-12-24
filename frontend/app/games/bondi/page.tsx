@@ -124,7 +124,7 @@ export default function BondiGamePage() {
       <div className="min-h-screen bg-[#020617] text-white font-sans flex flex-col">
         <div className="p-6">
           <Link href="/" className="text-gray-400 hover:text-white flex items-center text-sm font-bold tracking-wider">
-            ← BACK TO GALLERY
+            ← BACK TO HOME
           </Link>
         </div>
 
@@ -150,66 +150,32 @@ export default function BondiGamePage() {
                 <div className={`absolute right-4 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-4">
                 <button 
                   onClick={createRoom}
                   disabled={!isConnected || !playerName}
-                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20"
                 >
-                  <span className="text-lg">▶</span> Create
+                  <span className="text-lg">▶</span> CREATE ROOM
                 </button>
                 
-                <div className="relative group">
+                <div className="flex gap-3">
                   <input
                     type="text"
-                    placeholder="CODE"
+                    placeholder="ROOM CODE"
                     maxLength={6}
-                    className="absolute inset-0 w-full h-full bg-[#1e293b] border border-gray-700 rounded-xl text-center text-white font-mono uppercase opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity z-10"
+                    className="flex-1 bg-[#1e293b] border border-gray-700 p-4 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors text-center font-mono uppercase tracking-widest"
                     value={roomId}
                     onChange={(e) => setRoomId(e.target.value.toUpperCase())}
                   />
                   <button 
                     onClick={joinRoom}
-                    disabled={!isConnected || !playerName || (roomId.length !== 6 && !roomId)} // Allow clicking if input is hidden to show it? No, input covers button
-                    className="w-full h-full bg-[#1e293b] hover:bg-[#283548] text-white font-bold py-4 rounded-xl border border-gray-700 transition-all flex items-center justify-center gap-2"
+                    disabled={!isConnected || !playerName || roomId.length !== 6}
+                    className="bg-[#1e293b] hover:bg-[#283548] text-white font-bold px-6 rounded-xl border border-gray-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    <span className="text-lg">👤</span> Join
+                    JOIN
                   </button>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Right: Info Panel */}
-          <div className="hidden lg:flex gap-12 h-[500px]">
-            {/* Menu */}
-            <div className="flex flex-col gap-6 text-gray-500 font-bold text-sm tracking-wide pt-8">
-              {['Objective', 'Card Values', 'The Flow', 'The Trap'].map((item) => (
-                <button 
-                  key={item}
-                  onClick={() => setActiveTab(item)}
-                  className={`text-left transition-colors flex items-center gap-3 ${activeTab === item ? 'text-white' : 'hover:text-gray-300'}`}
-                >
-                  {activeTab === item && <span className="text-blue-500">👑</span>}
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            {/* Content */}
-            <div className="w-80 flex flex-col justify-center">
-              <div className="bg-blue-500 w-16 h-16 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-blue-500/20">
-                <span className="text-2xl">👑</span>
-              </div>
-              <h2 className="text-3xl font-bold mb-4">{activeTab}</h2>
-              <p className="text-gray-400 leading-relaxed">
-                {activeTab === 'Objective' && "Be the first player to empty your hand."}
-                {activeTab === 'Card Values' && "A > K > Q > J > 10... Spades are trump."}
-                {activeTab === 'The Flow' && "Follow suit if possible. Highest card wins."}
-                {activeTab === 'The Trap' && "If you can't follow suit, you interrupt!"}
-              </p>
-              <div className="mt-8 bg-[#1e293b] p-4 rounded-xl border border-gray-700 text-xs text-gray-400">
-                The game is played in tricks. Strategy is key to shedding cards effectively while avoiding picking up piles.
               </div>
             </div>
           </div>
@@ -252,19 +218,11 @@ export default function BondiGamePage() {
             >
               <span className="text-xl">▶</span> Start Game
             </button>
-            <button className="w-full bg-[#1e293b] hover:bg-[#283548] text-yellow-500 font-bold py-4 rounded-xl border border-gray-700 transition-colors text-sm tracking-wide">
-              SWITCH TO SPECTATOR
-            </button>
           </div>
 
           <div className="mt-8 pt-8 border-t border-gray-800">
             <div className="flex justify-between items-center mb-4">
               <span className="text-gray-400 text-sm font-bold">PLAYERS ({gameState.players.length})</span>
-              <div className="flex gap-1">
-                {['EASY', 'MEDIUM', 'HARD'].map(d => (
-                  <span key={d} className="text-[10px] bg-[#1e293b] px-2 py-1 rounded text-gray-500 border border-gray-700">{d}</span>
-                ))}
-              </div>
             </div>
             <div className="space-y-2">
               {gameState.players.map(p => (
@@ -296,9 +254,6 @@ export default function BondiGamePage() {
             <span className="text-xs text-gray-400">ROOM:</span> <span className="font-mono font-bold">{gameState.roomId}</span>
           </div>
         </div>
-        <button className="bg-[#1e293b] px-4 py-2 rounded border border-gray-700 text-sm font-bold hover:bg-red-900/50 hover:border-red-500/50 transition-colors">
-          EXIT
-        </button>
       </div>
 
       {/* 3D Game Table Container */}
@@ -339,25 +294,22 @@ export default function BondiGamePage() {
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="relative w-32 h-48">
               {gameState.currentTrick.map((move, i) => (
-                <div 
-                  key={i} 
-                  className="absolute left-0 top-0 w-24 h-36 bg-white rounded-lg shadow-xl border border-gray-200 flex items-center justify-center transform transition-all duration-500"
+                <PlayingCard
+                  key={i}
+                  card={move.card}
+                  className="absolute left-0 top-0 w-24 h-36 md:w-32 md:h-48 transform transition-all duration-500"
                   style={{ 
                     transform: `rotate(${i * 15 - (gameState.currentTrick.length * 7)}deg) translateY(${i * -2}px)`,
                     zIndex: i 
                   }}
-                >
-                  <div className={`text-2xl font-bold ${['H', 'D'].includes(move.card.suit) ? 'text-red-600' : 'text-black'}`}>
-                    {move.card.rank}{getSuitSymbol(move.card.suit)}
-                  </div>
-                </div>
+                />
               ))}
             </div>
           </div>
 
           {/* My Player (Bottom) */}
-          <div className="absolute bottom-[-100px] left-1/2 -translate-x-1/2 flex flex-col items-center z-20">
-            <div className="w-20 h-20 bg-gradient-to-b from-blue-600 to-blue-900 rounded-full border-4 border-blue-400 shadow-xl mb-4 relative">
+          <div className="absolute bottom-[-60px] md:bottom-[-100px] left-1/2 -translate-x-1/2 flex flex-col items-center z-20 w-full max-w-3xl">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-b from-blue-600 to-blue-900 rounded-full border-4 border-blue-400 shadow-xl mb-4 relative">
               {isMyTurn && (
                 <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-yellow-400 text-black font-bold px-3 py-1 rounded-full animate-bounce text-sm whitespace-nowrap">
                   YOUR TURN
@@ -366,31 +318,27 @@ export default function BondiGamePage() {
             </div>
             
             {/* My Hand */}
-            <div className="flex justify-center items-end h-40 perspective-500">
+            <div className="flex justify-center items-end h-32 md:h-40 perspective-500 w-full px-4">
               {myPlayer?.hand.map((card, i) => {
                 const offset = i - (myPlayer.hand.length - 1) / 2;
                 const rotation = offset * 5;
                 const translateY = Math.abs(offset) * 5;
 
                 return (
-                  <button
+                  <PlayingCard
                     key={i}
+                    card={card}
                     onClick={() => isMyTurn && playCard(card)}
                     className={`
-                      w-24 h-36 bg-white rounded-xl shadow-2xl border border-gray-300 
+                      w-20 h-28 md:w-24 md:h-36 
                       transform transition-all duration-300 hover:-translate-y-12 hover:scale-110 hover:z-50
-                      flex flex-col items-center justify-center -ml-12 first:ml-0
-                      ${['H', 'D'].includes(card.suit) ? 'text-red-600' : 'text-black'}
+                      -ml-10 md:-ml-12 first:ml-0 cursor-pointer
                     `}
                     style={{
                       transform: `rotate(${rotation}deg) translateY(${translateY}px)`,
                       zIndex: i
                     }}
-                  >
-                    <div className="absolute top-2 left-2 text-lg font-bold leading-none">{card.rank}<br/>{getSuitSymbol(card.suit)}</div>
-                    <div className="text-4xl">{getSuitSymbol(card.suit)}</div>
-                    <div className="absolute bottom-2 right-2 text-lg font-bold leading-none rotate-180">{card.rank}<br/>{getSuitSymbol(card.suit)}</div>
-                  </button>
+                  />
                 );
               })}
             </div>
@@ -398,6 +346,124 @@ export default function BondiGamePage() {
 
         </div>
       </div>
+    </div>
+  );
+}
+
+// --- COMPONENTS & HELPERS ---
+
+function PlayingCard({ card, onClick, style, className }: { card: Card, onClick?: () => void, style?: React.CSSProperties, className?: string }) {
+  const isRed = ['H', 'D'].includes(card.suit);
+  const suitSymbol = getSuitSymbol(card.suit);
+  const rank = card.rank;
+
+  // Helper to render pips
+  const renderPips = () => {
+    if (['J', 'Q', 'K'].includes(rank)) {
+      return (
+        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-20">
+           <div className="text-6xl md:text-7xl font-black">{suitSymbol}</div>
+           <div className="text-xs font-bold tracking-widest mt-2">
+             {rank === 'J' ? 'JACK' : rank === 'Q' ? 'QUEEN' : 'KING'}
+           </div>
+        </div>
+      );
+    }
+
+    if (rank === 'A') {
+      return (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="text-6xl md:text-8xl">{suitSymbol}</div>
+        </div>
+      );
+    }
+
+    const n = parseInt(rank);
+    if (isNaN(n)) return null;
+
+    // Pip Positions (Percentage based)
+    const pips: { t: number, l: number }[] = [];
+    const colL = 25, colM = 50, colR = 75;
+    const rowT = 20, rowM = 50, rowB = 80;
+    const rowTM = 35, rowBM = 65;
+
+    // Logic for standard card layouts
+    if (n >= 2) { pips.push({t: rowT, l: colM}, {t: rowB, l: colM}); } // 2 (Base) - actually 2 is usually top/bottom center
+    if (n === 2) { /* Already covered */ }
+    if (n === 3) { pips.push({t: rowM, l: colM}); }
+    
+    // Overwrite for 4+ (Corners)
+    if (n >= 4) {
+      // Clear previous
+      pips.length = 0;
+      pips.push({t: rowT, l: colL}, {t: rowT, l: colR}, {t: rowB, l: colL}, {t: rowB, l: colR});
+    }
+    
+    if (n === 5) { pips.push({t: rowM, l: colM}); }
+    if (n === 6) { pips.push({t: rowM, l: colL}, {t: rowM, l: colR}); }
+    if (n === 7) { pips.push({t: rowM, l: colL}, {t: rowM, l: colR}, {t: rowTM, l: colM}); }
+    if (n === 8) { pips.push({t: rowM, l: colL}, {t: rowM, l: colR}, {t: rowTM, l: colM}, {t: rowBM, l: colM}); }
+    
+    if (n === 9) {
+      pips.length = 0;
+      // 4 rows of 2 + 1 center
+      [20, 40, 60, 80].forEach(t => pips.push({t, l: colL}, {t, l: colR}));
+      pips.push({t: 50, l: colM});
+      // Wait, 9 is 9 pips. 4*2 + 1 = 9. Correct.
+    }
+    
+    if (n === 10) {
+      pips.length = 0;
+      // 2 columns of 4 + 2 middle
+      [20, 40, 60, 80].forEach(t => pips.push({t, l: colL}, {t, l: colR}));
+      pips.push({t: 30, l: colM}, {t: 70, l: colM});
+    }
+
+    return (
+      <>
+        {pips.map((p, i) => (
+          <div 
+            key={i} 
+            className="absolute text-sm md:text-lg leading-none transform -translate-x-1/2 -translate-y-1/2" 
+            style={{ top: `${p.t}%`, left: `${p.l}%` }}
+          >
+            {suitSymbol}
+          </div>
+        ))}
+      </>
+    );
+  };
+
+  return (
+    <div 
+      onClick={onClick}
+      className={`
+        relative bg-white rounded-lg md:rounded-xl border border-gray-300 
+        flex flex-col justify-between p-1 md:p-2 select-none overflow-hidden
+        ${isRed ? 'text-red-600' : 'text-black'}
+        ${className}
+      `}
+      style={{
+        ...style,
+        boxShadow: '1px 1px 0 #ccc, 2px 2px 0 #ccc, 3px 3px 0 #ccc, 4px 4px 8px rgba(0,0,0,0.4)'
+      }}
+    >
+       {/* Top Corner */}
+       <div className="flex flex-col items-center leading-none z-10">
+         <span className="font-bold text-sm md:text-lg">{rank}</span>
+         <span className="text-xs md:text-sm">{suitSymbol}</span>
+       </div>
+
+       {/* Center Pips */}
+       <div className="absolute inset-0">
+         {renderPips()}
+       </div>
+
+       {/* Bottom Corner (Rotated) */}
+       <div className="flex flex-col items-center leading-none rotate-180 self-end z-10">
+         <span className="font-bold text-sm md:text-lg">{rank}</span>
+         <span className="text-xs md:text-sm">{suitSymbol}</span>
+       </div>
     </div>
   );
 }
