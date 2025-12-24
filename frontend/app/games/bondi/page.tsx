@@ -150,12 +150,19 @@ export default function BondiGamePage() {
           <div className="flex gap-2">
             <input
               type="text"
-              placeholder="Room ID"
-              className="flex-1 bg-gray-700 p-2 rounded text-white"
+              placeholder="Enter Room Code (e.g. ABC123)"
+              className="flex-1 bg-gray-700 p-2 rounded text-white uppercase placeholder:normal-case"
               value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
+              onChange={(e) => setRoomId(e.target.value.toUpperCase())}
+              maxLength={6}
             />
-            <button onClick={joinRoom} className="bg-green-600 hover:bg-green-500 px-4 rounded">Join</button>
+            <button 
+              onClick={joinRoom} 
+              disabled={!isConnected || !playerName || roomId.length !== 6}
+              className="bg-green-600 hover:bg-green-500 px-4 rounded disabled:bg-gray-600 disabled:cursor-not-allowed"
+            >
+              Join
+            </button>
           </div>
         </div>
       </div>
@@ -171,11 +178,24 @@ export default function BondiGamePage() {
     <div className="min-h-screen bg-green-900 text-white p-4 flex flex-col">
       <div className="flex justify-between items-center mb-4">
         <div>
-          <h1 className="text-xl font-bold">Bondi - Room: {gameState.roomId}</h1>
-          <p>Status: {gameState.gameStatus}</p>
+          <h1 className="text-2xl font-bold mb-2">Bondi Card Game</h1>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-300">Room Code:</span>
+            <span className="text-2xl font-mono font-bold tracking-widest bg-gray-800 px-4 py-2 rounded">{gameState.roomId}</span>
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(gameState.roomId);
+                alert('Room code copied!');
+              }}
+              className="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded text-sm"
+            >
+              Copy
+            </button>
+          </div>
+          <p className="text-sm mt-2">Status: <span className="font-semibold">{gameState.gameStatus}</span></p>
         </div>
         {gameState.gameStatus === 'waiting' && (
-          <button onClick={startGame} className="bg-yellow-600 px-4 py-2 rounded">Start Game</button>
+          <button onClick={startGame} className="bg-yellow-600 hover:bg-yellow-500 px-6 py-3 rounded font-semibold">Start Game</button>
         )}
       </div>
 

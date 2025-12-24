@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { BondiService } from './bondi.service';
 import { GameState, Player } from './types';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class GameService {
@@ -9,8 +8,22 @@ export class GameService {
 
   constructor(private bondiService: BondiService) {}
 
+  private generateRoomCode(): string {
+    // Generate 6-character alphanumeric code (e.g., ABC123)
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Excluded similar-looking chars
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    // Check if code already exists, regenerate if it does
+    if (this.rooms.has(code)) {
+      return this.generateRoomCode();
+    }
+    return code;
+  }
+
   createRoom(host: Player, gameType: string): GameState {
-    const roomId = uuidv4();
+    const roomId = this.generateRoomCode();
     const gameState: GameState = {
       roomId,
       players: [host],
