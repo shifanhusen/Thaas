@@ -5,6 +5,8 @@ services:
       - "6380:6379"
     volumes:
       - redis_data:/data
+    networks:
+      - default
 
   backend:
     build:
@@ -16,20 +18,21 @@ services:
       - /app/node_modules
     ports:
       - "5004:3001"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
-      DATABASE_HOST: host.docker.internal
+      DATABASE_HOST: shared-postgres
       DATABASE_PORT: 5432
       DATABASE_USER: ${POSTGRES_USER:-postgres}
-      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-StrongPass123!}
       DATABASE_NAME: ${POSTGRES_DB:-cardgame}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      JWT_SECRET: supersecretkey
+      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
       PORT: 3001
     depends_on:
       - redis
+    networks:
+      - default
+      - shared-net
 
   frontend:
     build:
@@ -47,6 +50,14 @@ services:
       NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
     depends_on:
       - backend
+    networks:
+      - default
 
 volumes:
   redis_data:
+
+networks:
+  default:
+    driver: bridge
+  shared-net:
+    external: true
