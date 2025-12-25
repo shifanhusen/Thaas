@@ -123,7 +123,7 @@ export default function BondiGamePage() {
     return (
       <div className="min-h-screen bg-[#020617] text-white font-sans flex flex-col">
         <div className="p-6">
-          <Link href="/cardgames" className="text-gray-400 hover:text-white flex items-center text-sm font-bold tracking-wider">
+          <Link href="/" className="text-gray-400 hover:text-white flex items-center text-sm font-bold tracking-wider">
             ← BACK TO HOME
           </Link>
         </div>
@@ -326,7 +326,7 @@ export default function BondiGamePage() {
       )}
 
       {/* Background Stars/Grid */}
-      <div className="absolute inset-0 bg-[url('/cardgames/grid.svg')] opacity-10 pointer-events-none"></div>
+      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10 pointer-events-none"></div>
 
       {/* Top Bar */}
       <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10">

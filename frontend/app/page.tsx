@@ -49,7 +49,7 @@ export default function Home() {
                 <div className="mt-auto">
                   {game.status === 'Playable' ? (
                     <Link 
-                      href={`/cardgames/games/${game.id}`} 
+                      href={`/games/${game.id}`} 
                       className="inline-flex items-center bg-cyan-500 hover:bg-cyan-400 text-black font-bold py-3 px-6 rounded-full transition-colors"
                     >
                       Play Now <span className="ml-2">→</span>

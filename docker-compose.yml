@@ -38,7 +38,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    command: npm run start
+    command: npm run dev
     volumes:
       - ./frontend:/app
       - /app/node_modules
