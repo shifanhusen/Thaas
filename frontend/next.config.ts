@@ -5,6 +5,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   basePath: "/cardgames",
   assetPrefix: "/cardgames",
+  async redirects() {
+    return [
+      // Ensure direct IP root works by redirecting to basePath
+      { source: "/", destination: "/cardgames", permanent: false },
+      // Allow deep links without prefix to still resolve
+      { source: "/games/:path*", destination: "/cardgames/games/:path*", permanent: false },
+    ];
+  },
 };
 
 export default nextConfig;
