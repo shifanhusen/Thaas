@@ -38,8 +38,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    # Run production build then start the server to ensure basePath/assetPrefix are applied
-    command: sh -c "npm run build && npm run start"
+    command: npm run start
     volumes:
       - ./frontend:/app
       - /app/node_modules

@@ -123,7 +123,7 @@ export default function BondiGamePage() {
     return (
       <div className="min-h-screen bg-[#020617] text-white font-sans flex flex-col">
         <div className="p-6">
-          <Link href="/" className="text-gray-400 hover:text-white flex items-center text-sm font-bold tracking-wider">
+          <Link href="/cardgames" className="text-gray-400 hover:text-white flex items-center text-sm font-bold tracking-wider">
             ← BACK TO HOME
           </Link>
         </div>
