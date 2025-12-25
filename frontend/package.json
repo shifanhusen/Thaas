@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:local": "cp next.config.dev.ts next.config.ts && next dev",
     "build": "next build",
+    "build:prod": "next build",
     "start": "next start",
     "lint": "eslint"
   },
