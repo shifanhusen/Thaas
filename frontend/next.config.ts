@@ -1,10 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Always use /cardgames as basePath for production
-  // For local dev (IP access), use npm run dev without NEXT_PUBLIC_BASE_PATH
-  basePath: '/cardgames',
-  assetPrefix: '/cardgames',
+  // No basePath - nginx will strip /cardgames/ prefix with trailing slash in proxy_pass
 };
 
 export default nextConfig;
