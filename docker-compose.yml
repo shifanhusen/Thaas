@@ -48,6 +48,8 @@ services:
       # These will be read at runtime in dev mode
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
+      # Set base path for nginx subpath deployment (empty for direct IP access)
+      NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
     depends_on:
       - backend
     networks:
