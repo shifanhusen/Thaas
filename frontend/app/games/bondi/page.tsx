@@ -40,11 +40,11 @@ export default function BondiGamePage() {
   useEffect(() => {
     if (!gameState) return;
 
-    // Always update displayTrick when currentTrick changes
     if (gameState.currentTrick.length > 0) {
-      setDisplayTrick(gameState.currentTrick);
-    } else if (displayTrick.length > 0) {
-      // Trick just cleared - keep showing for 2 seconds
+      // Always show current trick cards immediately
+      setDisplayTrick([...gameState.currentTrick]);
+    } else {
+      // Trick cleared - keep showing previous cards for 2 seconds
       const timer = setTimeout(() => {
         setDisplayTrick([]);
       }, 2000);
