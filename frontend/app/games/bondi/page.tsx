@@ -36,6 +36,7 @@ export default function BondiGamePage() {
   const [joined, setJoined] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [displayTrick, setDisplayTrick] = useState<{ playerId: string; card: Card }[]>([]);
+  const [trickCompleteAt, setTrickCompleteAt] = useState<number>(0);
 
   // Trick visibility effect
   useEffect(() => {
@@ -44,14 +45,25 @@ export default function BondiGamePage() {
     if (gameState.currentTrick.length > 0) {
       // Always show current trick cards immediately
       setDisplayTrick([...gameState.currentTrick]);
+      setTrickCompleteAt(0); // Reset completion timer
     } else if (displayTrick.length > 0) {
-      // Trick cleared - keep showing previous cards for 3 seconds to see winner
+      // Trick just cleared by backend - mark completion time
+      if (trickCompleteAt === 0) {
+        setTrickCompleteAt(Date.now());
+      }
+      
+      // Keep showing previous cards for 3 seconds after completion
+      const elapsed = Date.now() - trickCompleteAt;
+      const remainingTime = Math.max(0, 3000 - elapsed);
+      
       const timer = setTimeout(() => {
         setDisplayTrick([]);
-      }, 3000);
+        setTrickCompleteAt(0);
+      }, remainingTime);
+      
       return () => clearTimeout(timer);
     }
-  }, [gameState?.currentTrick]);
+  }, [gameState?.currentTrick, displayTrick.length, trickCompleteAt]);
 
   useEffect(() => {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080', {
@@ -330,7 +342,7 @@ export default function BondiGamePage() {
   return (
     <div className="min-h-screen bg-[#0f172a] text-white overflow-hidden relative perspective-1000 flex">
       {/* Main Game Area */}
-      <div className="flex-1 relative">
+      <div className="flex-1 relative min-w-0">
       {/* Spectator Indicator */}
       {myPlayer?.isSpectator && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -403,22 +415,24 @@ export default function BondiGamePage() {
       </div>
 
       {/* 3D Game Table Container */}
-      <div className="w-full h-screen flex items-center justify-center perspective-[1200px]">
-        <div className="relative w-[800px] h-[500px] transform-style-3d rotate-x-20">
+      <div className="w-full h-screen flex items-center justify-center perspective-[1200px] px-4">
+        <div className="relative w-full max-w-[800px] h-[500px] transform-style-3d rotate-x-20">
           
           {/* Center Trick Area */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="relative w-48 h-60">
+            <div className="relative w-32 h-48 md:w-48 md:h-60">
               {displayTrick.map((move, i) => (
                 <PlayingCard
                   key={i}
                   card={move.card}
-                  className="absolute w-24 h-36 md:w-32 md:h-48 transform transition-all duration-500 shadow-2xl border border-white/20 rounded-lg"
+                  className="absolute w-20 h-28 md:w-32 md:h-48 transform transition-all duration-500 shadow-2xl border border-white/20 rounded-lg"
                   style={{ 
-                    transform: `translateY(${i * -8}px) rotate(${(i - (displayTrick.length - 1) / 2) * 5}deg)`,
+                    transform: `translateY(${i * -6}px) rotate(${(i - (displayTrick.length - 1) / 2) * 5}deg)`,
                     zIndex: i,
                     left: '50%',
-                    marginLeft: '-48px'
+                    marginLeft: '-40px',
+                    top: '50%',
+                    marginTop: '-56px'
                   }}
                 />
               ))}
@@ -499,8 +513,8 @@ export default function BondiGamePage() {
       </div>
       </div>
 
-      {/* Game Log Panel - Right Side */}
-      <div className="w-80 bg-black/60 backdrop-blur-md border-l border-white/10 flex flex-col max-h-screen">
+      {/* Game Log Panel - Right Side (Hidden on mobile) */}
+      <div className="hidden lg:flex w-80 bg-black/60 backdrop-blur-md border-l border-white/10 flex-col max-h-screen">
         <div className="p-4 border-b border-white/10">
           <h3 className="text-sm font-bold text-white uppercase tracking-wider">Game Log</h3>
         </div>
