@@ -404,20 +404,23 @@ export default function BondiGamePage() {
           
           {/* Center Trick Area */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="relative w-32 h-48">
+            <div className="relative w-48 h-60">
               {displayTrick.map((move, i) => (
                 <PlayingCard
                   key={i}
                   card={move.card}
-                  className="absolute left-0 top-0 w-24 h-36 md:w-32 md:h-48 transform transition-all duration-500 shadow-2xl border border-white/20 rounded-lg"
+                  className="absolute w-24 h-36 md:w-32 md:h-48 transform transition-all duration-500 shadow-2xl border border-white/20 rounded-lg"
                   style={{ 
-                    transform: `translateX(${(i - (displayTrick.length - 1) / 2) * 40}px) rotate(${(i - (displayTrick.length - 1) / 2) * 10}deg)`,
-                    zIndex: i 
+                    transform: `translateY(${i * -8}px) rotate(${(i - (displayTrick.length - 1) / 2) * 5}deg)`,
+                    zIndex: i,
+                    left: '50%',
+                    marginLeft: '-48px'
                   }}
                 />
               ))}
             </div>
           </div>
+
 
         </div>
       </div>
