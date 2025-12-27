@@ -32,6 +32,7 @@ export class GameService {
       leadingSuit: null,
       gameStatus: 'waiting',
       winners: [],
+      gameLog: [],
     };
     this.rooms.set(roomId, gameState);
     return gameState;
@@ -53,6 +54,9 @@ export class GameService {
     if (room.players.length < 2) return null;
 
     room.gameStatus = 'playing';
+    room.gameLog = [];
+    room.gameLog.push(`🎮 Game started with ${room.players.length} players`);
+    
     const deck = this.bondiService.createDeck();
     this.bondiService.dealCards(room.players, deck);
 
@@ -64,6 +68,7 @@ export class GameService {
         }
     });
     room.currentPlayerIndex = starterIndex;
+    room.gameLog.push(`${room.players[starterIndex].name} starts (has A♠)`);
 
     return room;
   }

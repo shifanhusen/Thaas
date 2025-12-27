@@ -8,6 +8,22 @@ export class BondiService {
     'J': 11, 'Q': 12, 'K': 13, 'A': 14,
   };
 
+  private addLog(gameState: GameState, message: string): void {
+    if (!gameState.gameLog) {
+      gameState.gameLog = [];
+    }
+    gameState.gameLog.push(message);
+    // Keep only last 50 log entries
+    if (gameState.gameLog.length > 50) {
+      gameState.gameLog = gameState.gameLog.slice(-50);
+    }
+  }
+
+  private getCardName(card: Card): string {
+    const suitNames = { 'S': '♠', 'H': '♥', 'D': '♦', 'C': '♣' };
+    return `${card.rank}${suitNames[card.suit]}`;
+  }
+
   createDeck(): Card[] {
     const suits: Suit[] = ['S', 'H', 'D', 'C'];
     const ranks: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -54,13 +70,19 @@ export class BondiService {
     player.hand = player.hand.filter(c => !(c.suit === card.suit && c.rank === card.rank));
     gameState.currentTrick.push({ playerId: player.id, card });
 
+    // Log the play
+    this.addLog(gameState, `${player.name} played ${this.getCardName(card)}`);
+
     if (!gameState.leadingSuit) {
       gameState.leadingSuit = card.suit;
+      const suitNames = { 'S': 'Spades', 'H': 'Hearts', 'D': 'Diamonds', 'C': 'Clubs' };
+      this.addLog(gameState, `Leading suit: ${suitNames[card.suit]}`);
     }
 
     const isInterrupted = card.suit !== gameState.leadingSuit;
 
     if (isInterrupted) {
+      this.addLog(gameState, `⚠️ Suit interrupted! ${player.name} played off-suit`);
       return this.resolveInterruptedTrick(gameState);
     }
 
@@ -80,6 +102,9 @@ export class BondiService {
         if (!gameState.winners.some(w => w.id === p.id)) {
              gameState.winners.push(p);
              p.isSpectator = true;
+             const position = gameState.winners.length;
+             const suffix = position === 1 ? 'st' : position === 2 ? 'nd' : position === 3 ? 'rd' : 'th';
+             this.addLog(gameState, `🏆 ${p.name} finished ${position}${suffix}!`);
         }
       }
     });
@@ -89,8 +114,10 @@ export class BondiService {
     if (activePlayers.length <= 1) {
       if (activePlayers.length === 1) {
         gameState.winners.push(activePlayers[0]); // Last player
+        this.addLog(gameState, `💀 ${activePlayers[0].name} is the loser`);
       }
       gameState.gameStatus = 'finished';
+      this.addLog(gameState, `🎮 Game Over!`);
     }
   }
 
@@ -101,6 +128,8 @@ export class BondiService {
 
     const cards = gameState.currentTrick.map(m => m.card);
     winner.hand.push(...cards);
+
+    this.addLog(gameState, `${winner.name} won trick (+${cards.length} cards)`);
 
     gameState.currentTrick = [];
     gameState.leadingSuit = null;
@@ -116,6 +145,8 @@ export class BondiService {
     const winnerId = this.getTrickWinner(trick, gameState.leadingSuit!);
     const winnerIndex = gameState.players.findIndex(p => p.id === winnerId);
     const winner = gameState.players[winnerIndex];
+
+    this.addLog(gameState, `${winner.name} won trick (cards discarded)`);
 
     gameState.currentTrick = [];
     gameState.leadingSuit = null;

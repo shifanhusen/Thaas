@@ -22,4 +22,5 @@ export interface GameState {
   leadingSuit: Suit | null;
   gameStatus: 'waiting' | 'playing' | 'finished';
   winners: Player[]; // List of players in order of finishing
+  gameLog: string[];
 }
