@@ -40,16 +40,17 @@ export default function BondiGamePage() {
   useEffect(() => {
     if (!gameState) return;
 
+    // Always update displayTrick when currentTrick changes
     if (gameState.currentTrick.length > 0) {
       setDisplayTrick(gameState.currentTrick);
-    } else if (displayTrick.length > 0 && gameState.currentTrick.length === 0) {
-      // Trick just cleared. Keep showing the last state for a bit.
+    } else if (displayTrick.length > 0) {
+      // Trick just cleared - keep showing for 2 seconds
       const timer = setTimeout(() => {
         setDisplayTrick([]);
       }, 2000);
       return () => clearTimeout(timer);
     }
-  }, [gameState?.currentTrick, displayTrick.length]);
+  }, [gameState?.currentTrick]);
 
   useEffect(() => {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080', {
@@ -428,18 +429,17 @@ export default function BondiGamePage() {
       {/* My Player (Bottom) - Moved outside 3D container */}
       <div className="fixed bottom-0 left-0 right-0 flex flex-col items-center z-50 pointer-events-none">
         <div className="pointer-events-auto flex flex-col items-center w-full">
-            <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-b from-blue-600 to-blue-900 rounded-full border-4 border-blue-400 shadow-xl mb-4 relative transform translate-y-8 md:translate-y-0">
-              {isMyTurn && (
-                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-yellow-400 text-black font-bold px-3 py-1 rounded-full animate-bounce text-sm whitespace-nowrap">
-                  YOUR TURN
-                </div>
-              )}
-              {myPlayer?.isSpectator && (
-                <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-green-500 text-white font-bold px-3 py-1 rounded-full text-sm whitespace-nowrap shadow-lg">
-                  FINISHED! 🏆
-                </div>
-              )}
-            </div>
+            {/* Turn indicator without the blue dot */}
+            {isMyTurn && (
+              <div className="mb-4 bg-yellow-400 text-black font-bold px-3 py-1 rounded-full animate-bounce text-sm whitespace-nowrap">
+                YOUR TURN
+              </div>
+            )}
+            {myPlayer?.isSpectator && (
+              <div className="mb-4 bg-green-500 text-white font-bold px-3 py-1 rounded-full text-sm whitespace-nowrap shadow-lg">
+                FINISHED! 🏆
+              </div>
+            )}
             
             {/* My Hand - Responsive Layout */}
             {/* Mobile: Scrollable Row (Like Screenshot) */}
