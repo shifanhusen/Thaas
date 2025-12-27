@@ -23,4 +23,5 @@ export interface GameState {
   gameStatus: 'waiting' | 'playing' | 'finished';
   winners: Player[]; // List of players in order of finishing
   gameLog: string[];
+  trickWinnerId?: string; // ID of player who won the last trick (for display purposes)
 }

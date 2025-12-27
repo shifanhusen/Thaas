@@ -36,7 +36,6 @@ export default function BondiGamePage() {
   const [joined, setJoined] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [displayTrick, setDisplayTrick] = useState<{ playerId: string; card: Card }[]>([]);
-  const [trickCompleteAt, setTrickCompleteAt] = useState<number>(0);
 
   // Trick visibility effect
   useEffect(() => {
@@ -45,25 +44,15 @@ export default function BondiGamePage() {
     if (gameState.currentTrick.length > 0) {
       // Always show current trick cards immediately
       setDisplayTrick([...gameState.currentTrick]);
-      setTrickCompleteAt(0); // Reset completion timer
     } else if (displayTrick.length > 0) {
-      // Trick just cleared by backend - mark completion time
-      if (trickCompleteAt === 0) {
-        setTrickCompleteAt(Date.now());
-      }
-      
-      // Keep showing previous cards for 3 seconds after completion
-      const elapsed = Date.now() - trickCompleteAt;
-      const remainingTime = Math.max(0, 3000 - elapsed);
-      
+      // Trick just cleared by backend - keep showing for 3 seconds
       const timer = setTimeout(() => {
         setDisplayTrick([]);
-        setTrickCompleteAt(0);
-      }, remainingTime);
+      }, 3000);
       
       return () => clearTimeout(timer);
     }
-  }, [gameState?.currentTrick, displayTrick.length, trickCompleteAt]);
+  }, [gameState?.currentTrick]);
 
   useEffect(() => {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080', {
@@ -371,7 +360,7 @@ export default function BondiGamePage() {
         </div>
 
         {/* Player Order Bar */}
-        <div className="flex items-center overflow-x-auto px-4 py-3 gap-4 no-scrollbar">
+        <div className="flex items-center overflow-x-auto px-3 py-2 gap-2 no-scrollbar">
           {gameState.players.map((p, i) => {
             const isCurrent = i === gameState.currentPlayerIndex;
             const isMe = p.id === socket?.id;
@@ -381,30 +370,30 @@ export default function BondiGamePage() {
               <div 
                 key={p.id} 
                 className={`
-                  flex items-center gap-3 px-4 py-2 rounded-full border transition-all duration-300 flex-shrink-0
+                  flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-300 flex-shrink-0
                   ${isCurrent 
-                    ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)] scale-105' 
+                    ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.3)] scale-105' 
                     : 'bg-white/5 border-white/10 opacity-70'}
                   ${isWinner ? 'opacity-50 grayscale' : ''}
                 `}
               >
                 <div className="relative">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold border
                     ${isCurrent ? 'bg-yellow-500 text-black border-yellow-300' : 'bg-gray-700 text-gray-300 border-gray-600'}
                   `}>
                     {p.name.substring(0, 2).toUpperCase()}
                   </div>
                   {isWinner && (
-                    <div className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-black">✓</div>
+                    <div className="absolute -top-0.5 -right-0.5 bg-green-500 text-white text-[8px] w-3 h-3 flex items-center justify-center rounded-full border border-black">✓</div>
                   )}
                 </div>
                 <div className="flex flex-col">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold ${isCurrent ? 'text-yellow-400' : 'text-white'}`}>
+                  <div className="flex items-center gap-1">
+                    <span className={`text-xs font-bold ${isCurrent ? 'text-yellow-400' : 'text-white'}`}>
                       {p.name} {isMe && '(YOU)'}
                     </span>
                   </div>
-                  <div className="text-[10px] text-gray-400 font-mono font-bold">
+                  <div className="text-[9px] text-gray-400 font-mono font-bold">
                     {p.hand.length} {p.hand.length === 1 ? 'CARD' : 'CARDS'}
                   </div>
                 </div>
@@ -415,24 +404,22 @@ export default function BondiGamePage() {
       </div>
 
       {/* 3D Game Table Container */}
-      <div className="w-full h-screen flex items-center justify-center perspective-[1200px] px-4">
-        <div className="relative w-full max-w-[800px] h-[500px] transform-style-3d rotate-x-20">
+      <div className="w-full h-screen flex items-center justify-center perspective-[1200px]">
+        <div className="relative w-full max-w-[90vw] md:max-w-[800px] h-[300px] md:h-[500px] transform-style-3d rotate-x-20">
           
           {/* Center Trick Area */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="relative w-32 h-48 md:w-48 md:h-60">
+            <div className="relative">
               {displayTrick.map((move, i) => (
                 <PlayingCard
                   key={i}
                   card={move.card}
                   className="absolute w-20 h-28 md:w-32 md:h-48 transform transition-all duration-500 shadow-2xl border border-white/20 rounded-lg"
                   style={{ 
-                    transform: `translateY(${i * -6}px) rotate(${(i - (displayTrick.length - 1) / 2) * 5}deg)`,
+                    transform: `translate(-50%, -50%) translateY(${i * -6}px) rotate(${(i - (displayTrick.length - 1) / 2) * 5}deg)`,
                     zIndex: i,
                     left: '50%',
-                    marginLeft: '-40px',
-                    top: '50%',
-                    marginTop: '-56px'
+                    top: '50%'
                   }}
                 />
               ))}
