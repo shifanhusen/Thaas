@@ -402,11 +402,6 @@ export default function BondiGamePage() {
       <div className="w-full h-screen flex items-center justify-center perspective-[1200px]">
         <div className="relative w-[800px] h-[500px] transform-style-3d rotate-x-20">
           
-          {/* The Table Surface */}
-          <div className="absolute inset-0 bg-[#1e293b]/80 rounded-[3rem] border-4 border-gray-600 shadow-2xl backdrop-blur-sm transform rotateX(40deg) scale-90">
-            <div className="absolute inset-4 border-2 border-white/10 rounded-[2.5rem]"></div>
-          </div>
-
           {/* Center Trick Area */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
             <div className="relative w-32 h-48">
@@ -414,9 +409,9 @@ export default function BondiGamePage() {
                 <PlayingCard
                   key={i}
                   card={move.card}
-                  className="absolute left-0 top-0 w-24 h-36 md:w-32 md:h-48 transform transition-all duration-500"
+                  className="absolute left-0 top-0 w-24 h-36 md:w-32 md:h-48 transform transition-all duration-500 shadow-2xl border border-white/20 rounded-lg"
                   style={{ 
-                    transform: `rotate(${i * 15 - (displayTrick.length * 7)}deg) translateY(${i * -2}px)`,
+                    transform: `translateX(${(i - (displayTrick.length - 1) / 2) * 40}px) rotate(${(i - (displayTrick.length - 1) / 2) * 10}deg)`,
                     zIndex: i 
                   }}
                 />
@@ -424,8 +419,12 @@ export default function BondiGamePage() {
             </div>
           </div>
 
-          {/* My Player (Bottom) */}
-          <div className="absolute bottom-0 left-0 right-0 flex flex-col items-center z-20">
+        </div>
+      </div>
+
+      {/* My Player (Bottom) - Moved outside 3D container */}
+      <div className="fixed bottom-0 left-0 right-0 flex flex-col items-center z-50 pointer-events-none">
+        <div className="pointer-events-auto flex flex-col items-center w-full">
             <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-b from-blue-600 to-blue-900 rounded-full border-4 border-blue-400 shadow-xl mb-4 relative transform translate-y-8 md:translate-y-0">
               {isMyTurn && (
                 <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-yellow-400 text-black font-bold px-3 py-1 rounded-full animate-bounce text-sm whitespace-nowrap">
@@ -490,8 +489,6 @@ export default function BondiGamePage() {
                 );
               })}
             </div>
-          </div>
-
         </div>
       </div>
     </div>
