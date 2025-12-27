@@ -34,7 +34,22 @@ export default function BondiGamePage() {
   const [roomId, setRoomId] = useState('');
   const [joined, setJoined] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
-  const [activeTab, setActiveTab] = useState('Objective');
+  const [displayTrick, setDisplayTrick] = useState<{ playerId: string; card: Card }[]>([]);
+
+  // Trick visibility effect
+  useEffect(() => {
+    if (!gameState) return;
+
+    if (gameState.currentTrick.length > 0) {
+      setDisplayTrick(gameState.currentTrick);
+    } else if (displayTrick.length > 0 && gameState.currentTrick.length === 0) {
+      // Trick just cleared. Keep showing the last state for a bit.
+      const timer = setTimeout(() => {
+        setDisplayTrick([]);
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [gameState?.currentTrick, displayTrick.length]);
 
   useEffect(() => {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080', {
@@ -328,12 +343,58 @@ export default function BondiGamePage() {
       {/* Background Stars/Grid */}
       <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10 pointer-events-none"></div>
 
-      {/* Top Bar */}
-      <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10">
-        <div className="flex items-center gap-4">
-          <div className="bg-[#1e293b] px-3 py-1 rounded border border-gray-700">
-            <span className="text-xs text-gray-400">ROOM:</span> <span className="font-mono font-bold">{gameState.roomId}</span>
-          </div>
+      {/* Top Bar with Player List */}
+      <div className="absolute top-0 left-0 right-0 z-30 flex flex-col bg-black/40 backdrop-blur-md border-b border-white/10">
+        <div className="flex justify-between items-center px-4 py-2 border-b border-white/5">
+           <div className="flex items-center gap-4">
+             <Link href="/" className="text-xs font-bold text-gray-400 hover:text-white">← EXIT</Link>
+             <div className="bg-[#1e293b] px-3 py-1 rounded border border-gray-700">
+               <span className="text-xs text-gray-400">ROOM:</span> <span className="font-mono font-bold">{gameState.roomId}</span>
+             </div>
+           </div>
+        </div>
+
+        {/* Player Order Bar */}
+        <div className="flex items-center overflow-x-auto px-4 py-3 gap-4 no-scrollbar">
+          {gameState.players.map((p, i) => {
+            const isCurrent = i === gameState.currentPlayerIndex;
+            const isMe = p.id === socket?.id;
+            const isWinner = gameState.winners.some(w => w.id === p.id);
+            
+            return (
+              <div 
+                key={p.id} 
+                className={`
+                  flex items-center gap-3 px-4 py-2 rounded-full border transition-all duration-300 flex-shrink-0
+                  ${isCurrent 
+                    ? 'bg-yellow-500/20 border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.3)] scale-105' 
+                    : 'bg-white/5 border-white/10 opacity-70'}
+                  ${isWinner ? 'opacity-50 grayscale' : ''}
+                `}
+              >
+                <div className="relative">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border
+                    ${isCurrent ? 'bg-yellow-500 text-black border-yellow-300' : 'bg-gray-700 text-gray-300 border-gray-600'}
+                  `}>
+                    {p.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  {isWinner && (
+                    <div className="absolute -top-1 -right-1 bg-green-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-black">✓</div>
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-bold ${isCurrent ? 'text-yellow-400' : 'text-white'}`}>
+                      {p.name} {isMe && '(YOU)'}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-gray-400 font-mono">
+                    {p.hand.length} CARDS
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -346,41 +407,16 @@ export default function BondiGamePage() {
             <div className="absolute inset-4 border-2 border-white/10 rounded-[2.5rem]"></div>
           </div>
 
-          {/* Opponents */}
-          {gameState.players.filter(p => p.id !== socket?.id).map((p, i) => {
-            // Simple positioning logic for up to 3 opponents
-            const positions = [
-              'top-0 left-1/2 -translate-x-1/2 -translate-y-16', // Top Center
-              'top-1/2 left-0 -translate-x-16 -translate-y-1/2', // Left
-              'top-1/2 right-0 translate-x-16 -translate-y-1/2', // Right
-            ];
-            const pos = positions[i % 3]; // Fallback for more players needed
-
-            return (
-              <div key={p.id} className={`absolute ${pos} flex flex-col items-center transition-all duration-500`}>
-                <div className="w-16 h-16 bg-gradient-to-b from-gray-700 to-gray-900 rounded-full border-2 border-gray-500 shadow-lg flex items-center justify-center relative">
-                  <div className="w-10 h-4 bg-black rounded-full opacity-50 mb-2"></div> {/* Visor */}
-                  <div className="absolute -right-2 -top-2 bg-yellow-500 text-black text-xs font-bold px-2 py-0.5 rounded-full border border-white">
-                    {p.hand.length}
-                  </div>
-                </div>
-                <div className="mt-2 bg-black/50 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md border border-white/10">
-                  {p.name}
-                </div>
-              </div>
-            );
-          })}
-
           {/* Center Trick Area */}
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
             <div className="relative w-32 h-48">
-              {gameState.currentTrick.map((move, i) => (
+              {displayTrick.map((move, i) => (
                 <PlayingCard
                   key={i}
                   card={move.card}
                   className="absolute left-0 top-0 w-24 h-36 md:w-32 md:h-48 transform transition-all duration-500"
                   style={{ 
-                    transform: `rotate(${i * 15 - (gameState.currentTrick.length * 7)}deg) translateY(${i * -2}px)`,
+                    transform: `rotate(${i * 15 - (displayTrick.length * 7)}deg) translateY(${i * -2}px)`,
                     zIndex: i 
                   }}
                 />
