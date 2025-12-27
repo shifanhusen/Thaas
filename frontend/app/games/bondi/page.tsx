@@ -25,6 +25,7 @@ interface GameState {
   leadingSuit: string | null;
   gameStatus: 'waiting' | 'playing' | 'finished';
   winners: Player[];
+  gameLog?: string[];
 }
 
 export default function BondiGamePage() {
@@ -43,11 +44,11 @@ export default function BondiGamePage() {
     if (gameState.currentTrick.length > 0) {
       // Always show current trick cards immediately
       setDisplayTrick([...gameState.currentTrick]);
-    } else {
-      // Trick cleared - keep showing previous cards for 2 seconds
+    } else if (displayTrick.length > 0) {
+      // Trick cleared - keep showing previous cards for 3 seconds to see winner
       const timer = setTimeout(() => {
         setDisplayTrick([]);
-      }, 2000);
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [gameState?.currentTrick]);
@@ -327,7 +328,9 @@ export default function BondiGamePage() {
 
   // --- RENDER: GAME SCREEN ---
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white overflow-hidden relative perspective-1000">
+    <div className="min-h-screen bg-[#0f172a] text-white overflow-hidden relative perspective-1000 flex">
+      {/* Main Game Area */}
+      <div className="flex-1 relative">
       {/* Spectator Indicator */}
       {myPlayer?.isSpectator && (
         <div className="absolute top-20 left-1/2 -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-500">
@@ -389,8 +392,8 @@ export default function BondiGamePage() {
                       {p.name} {isMe && '(YOU)'}
                     </span>
                   </div>
-                  <div className="text-[10px] text-gray-400 font-mono">
-                    {p.hand.length} CARDS
+                  <div className="text-[10px] text-gray-400 font-mono font-bold">
+                    {p.hand.length} {p.hand.length === 1 ? 'CARD' : 'CARDS'}
                   </div>
                 </div>
               </div>
@@ -492,6 +495,28 @@ export default function BondiGamePage() {
                 );
               })}
             </div>
+        </div>
+      </div>
+      </div>
+
+      {/* Game Log Panel - Right Side */}
+      <div className="w-80 bg-black/60 backdrop-blur-md border-l border-white/10 flex flex-col max-h-screen">
+        <div className="p-4 border-b border-white/10">
+          <h3 className="text-sm font-bold text-white uppercase tracking-wider">Game Log</h3>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {(gameState.gameLog && gameState.gameLog.length > 0) ? (
+            gameState.gameLog.map((log, i) => (
+              <div key={i} className="text-xs bg-white/5 rounded px-3 py-2 border border-white/10">
+                <span className="text-gray-400 font-mono mr-2">#{i + 1}</span>
+                <span className="text-gray-200">{log}</span>
+              </div>
+            ))
+          ) : (
+            <div className="text-xs text-gray-500 text-center mt-8">
+              Game actions will appear here...
+            </div>
+          )}
         </div>
       </div>
     </div>
