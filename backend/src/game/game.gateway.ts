@@ -57,6 +57,19 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('joinAsSpectator')
+  joinAsSpectator(@MessageBody() data: { roomId: string; name: string }, @ConnectedSocket() client: Socket) {
+    const player = { id: client.id, name: data.name, hand: [], isSpectator: true, socketId: client.id };
+    const room = this.gameService.joinAsSpectator(data.roomId, player);
+    if (room) {
+      client.join(data.roomId);
+      this.server.to(data.roomId).emit('spectatorJoined', room);
+      return { event: 'joinedAsSpectator', data: room };
+    } else {
+      return { event: 'error', data: 'Room not found' };
+    }
+  }
+
   @SubscribeMessage('startGame')
   startGame(@MessageBody() data: { roomId: string }) {
     const room = this.gameService.startGame(data.roomId);
@@ -74,6 +87,22 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
     } catch (e) {
       client.emit('error', e.message);
+    }
+  }
+
+  @SubscribeMessage('rematch')
+  rematch(@MessageBody() data: { roomId: string }) {
+    const room = this.gameService.rematchGame(data.roomId);
+    if (room) {
+      this.server.to(data.roomId).emit('rematchStarted', room);
+    }
+  }
+
+  @SubscribeMessage('sendMessage')
+  sendMessage(@MessageBody() data: { roomId: string; message: string; type: 'text' | 'emoji' }, @ConnectedSocket() client: Socket) {
+    const chatMessage = this.gameService.addChatMessage(data.roomId, client.id, data.message, data.type);
+    if (chatMessage) {
+      this.server.to(data.roomId).emit('newMessage', chatMessage);
     }
   }
 }

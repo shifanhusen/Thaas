@@ -24,4 +24,15 @@ export interface GameState {
   winners: Player[]; // List of players in order of finishing
   gameLog: string[];
   lastCompletedTrick?: { playerId: string; card: Card }[]; // For display purposes
+  leadingPlayerId?: string; // Player with highest card in current trick
+  chatMessages?: ChatMessage[];
+}
+
+export interface ChatMessage {
+  id: string;
+  playerId: string;
+  playerName: string;
+  message: string;
+  type: 'text' | 'emoji';
+  timestamp: number;
 }

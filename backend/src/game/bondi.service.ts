@@ -24,6 +24,33 @@ export class BondiService {
     return `${card.rank}${suitNames[card.suit]}`;
   }
 
+  private updateLeadingPlayer(gameState: GameState): void {
+    if (gameState.currentTrick.length === 0) {
+      gameState.leadingPlayerId = undefined;
+      return;
+    }
+
+    // Find the highest card in the leading suit
+    const leadingSuit = gameState.leadingSuit;
+    if (!leadingSuit) {
+      gameState.leadingPlayerId = gameState.currentTrick[0].playerId;
+      return;
+    }
+
+    let highestCard = gameState.currentTrick[0];
+    for (const move of gameState.currentTrick) {
+      // Only consider cards of the leading suit
+      if (move.card.suit === leadingSuit) {
+        if (highestCard.card.suit !== leadingSuit || 
+            this.rankValues[move.card.rank] > this.rankValues[highestCard.card.rank]) {
+          highestCard = move;
+        }
+      }
+    }
+
+    gameState.leadingPlayerId = highestCard.playerId;
+  }
+
   createDeck(): Card[] {
     const suits: Suit[] = ['S', 'H', 'D', 'C'];
     const ranks: Rank[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
@@ -84,6 +111,9 @@ export class BondiService {
       this.addLog(gameState, `Leading suit: ${suitNames[card.suit]}`);
     }
 
+    // Update leading player
+    this.updateLeadingPlayer(gameState);
+
     const isInterrupted = card.suit !== gameState.leadingSuit;
 
     if (isInterrupted) {
@@ -141,6 +171,8 @@ export class BondiService {
     
     gameState.currentTrick = [];
     gameState.leadingSuit = null;
+    gameState.leadingPlayerId = undefined;
+    gameState.currentPlayerIndex = winnerIndex;
     gameState.currentPlayerIndex = winnerIndex;
 
     this.checkWinCondition(gameState);
