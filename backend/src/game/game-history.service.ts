@@ -41,7 +41,7 @@ export class GameHistoryService {
     });
   }
 
-  async getGameById(id: number): Promise<GameHistory> {
+  async getGameById(id: number): Promise<GameHistory | null> {
     return this.gameHistoryRepository.findOne({ where: { id } });
   }
 

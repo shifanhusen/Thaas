@@ -7,6 +7,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { GameModule } from './game/game.module';
 import { User } from './users/user.entity';
+import { GameHistory } from './game/game-history.entity';
 
 @Module({
   imports: [
@@ -22,8 +23,9 @@ import { User } from './users/user.entity';
         username: configService.get<string>('DATABASE_USER'),
         password: configService.get<string>('DATABASE_PASSWORD'),
         database: configService.get<string>('DATABASE_NAME'),
-        entities: [User],
-        synchronize: true, // Only for dev
+        entities: [User, GameHistory],
+        synchronize: false, // Changed to false - use migrations instead
+        logging: false,
       }),
       inject: [ConfigService],
     }),
