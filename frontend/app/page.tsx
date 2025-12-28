@@ -26,12 +26,25 @@ export default function Home() {
     <main className="min-h-screen bg-[#020617] text-white p-8 font-sans">
       <div className="max-w-7xl mx-auto">
         <header className="mb-16 mt-8">
-          <h1 className="text-7xl font-black tracking-tighter mb-4">THAAS</h1>
-          <p className="text-xl text-gray-400 max-w-2xl">
-            The Maldivian Card Game Platform.
-            <br />
-            Play your favorite classic games with friends or challenge our AI.
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-7xl font-black tracking-tighter mb-4">THAAS</h1>
+              <p className="text-xl text-gray-400 max-w-2xl">
+                The Maldivian Card Game Platform.
+                <br />
+                Play your favorite classic games with friends or challenge our AI.
+              </p>
+            </div>
+            <Link 
+              href="/history" 
+              className="inline-flex items-center bg-gray-800 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-full transition-colors border border-gray-700"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Game History
+            </Link>
+          </div>
         </header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -1,12 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { BondiService } from './bondi.service';
 import { GameState, Player } from './types';
+import { GameHistoryService } from './game-history.service';
 
 @Injectable()
 export class GameService {
   private rooms: Map<string, GameState> = new Map();
+  private gameStartTimes: Map<string, Date> = new Map();
 
-  constructor(private bondiService: BondiService) {}
+  constructor(
+    private bondiService: BondiService,
+    private gameHistoryService: GameHistoryService,
+  ) {}
 
   private generateRoomCode(): string {
     // Generate 6-character alphanumeric code (e.g., ABC123)
@@ -57,6 +62,9 @@ export class GameService {
     room.gameLog = [];
     room.gameLog.push(`🎮 Game started with ${room.players.length} players`);
     
+    // Track start time
+    this.gameStartTimes.set(roomId, new Date());
+    
     const deck = this.bondiService.createDeck();
     this.bondiService.dealCards(room.players, deck);
 
@@ -88,6 +96,19 @@ export class GameService {
         throw new Error('Invalid move');
     }
 
-    return this.bondiService.processTurn(room, player, card);
+    this.bondiService.processTurn(room, player, card);
+
+    // Check if game finished and save to history
+    if (room.gameStatus === 'finished') {
+      const startTime = this.gameStartTimes.get(roomId);
+      if (startTime) {
+        this.gameHistoryService.saveGame(room, startTime).catch(err => {
+          console.error('Failed to save game history:', err);
+        });
+        this.gameStartTimes.delete(roomId);
+      }
+    }
+
+    return room;
   }
 }

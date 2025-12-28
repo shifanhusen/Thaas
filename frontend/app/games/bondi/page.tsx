@@ -60,12 +60,12 @@ export default function BondiGamePage() {
       displayTrickRef.current = [...lastCompleted];
       lastTrickLengthRef.current = lastCompleted.length;
       
-      // Start timer to clear after 3 seconds
+      // Start timer to clear after 1.5 seconds
       clearTimerRef.current = setTimeout(() => {
         setDisplayTrick([]);
         displayTrickRef.current = [];
         clearTimerRef.current = null;
-      }, 3000);
+      }, 1500);
     }
     // Track if trick is growing (cards being added)
     else if (currentLength > lastTrickLengthRef.current) {
@@ -450,19 +450,25 @@ export default function BondiGamePage() {
           {/* Center Trick Area */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
             <div className="relative">
-              {displayTrick.map((move, i) => (
-                <PlayingCard
-                  key={i}
-                  card={move.card}
-                  className="absolute w-20 h-28 md:w-32 md:h-48 transform transition-all duration-500 shadow-2xl border border-white/20 rounded-lg"
-                  style={{ 
-                    transform: `translate(-50%, -50%) translateY(${i * -6}px) rotate(${(i - (displayTrick.length - 1) / 2) * 5}deg)`,
-                    zIndex: i,
-                    left: '50%',
-                    top: '50%'
-                  }}
-                />
-              ))}
+              {displayTrick.map((move, i) => {
+                const totalCards = displayTrick.length;
+                const centerOffset = (totalCards - 1) / 2;
+                const positionOffset = i - centerOffset;
+                
+                return (
+                  <PlayingCard
+                    key={i}
+                    card={move.card}
+                    className="absolute w-20 h-28 md:w-32 md:h-48 transform transition-all duration-500 shadow-2xl border border-white/20 rounded-lg"
+                    style={{ 
+                      transform: `translate(-50%, -50%) translateX(${positionOffset * 25}px) translateY(${i * -4}px) rotate(${positionOffset * 8}deg)`,
+                      zIndex: i,
+                      left: '50%',
+                      top: '50%'
+                    }}
+                  />
+                );
+              })}
             </div>
           </div>
 
