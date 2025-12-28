@@ -9,15 +9,15 @@ export default function Home() {
       status: 'Playable',
     },
     {
+      id: 'digu',
+      name: 'Digu (Gin Rummy)',
+      description: 'Form sets and runs to minimize deadwood. Knock when ready and score points. Ace = 15!',
+      status: 'Playable',
+    },
+    {
       id: 'dhihaeh',
       name: 'Dhihaeh',
       description: 'A fast-paced point-collection game. Coming soon to the platform.',
-      status: 'Coming Soon',
-    },
-    {
-      id: 'digu',
-      name: 'Digu',
-      description: 'The ultimate test of memory and partnership. Currently in development.',
       status: 'Coming Soon',
     },
   ];
