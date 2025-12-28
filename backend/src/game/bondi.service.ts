@@ -67,6 +67,11 @@ export class BondiService {
   }
 
   processTurn(gameState: GameState, player: Player, card: Card): GameState {
+    // Clear last completed trick when new trick starts
+    if (gameState.currentTrick.length === 0 && gameState.lastCompletedTrick) {
+      gameState.lastCompletedTrick = undefined;
+    }
+    
     player.hand = player.hand.filter(c => !(c.suit === card.suit && c.rank === card.rank));
     gameState.currentTrick.push({ playerId: player.id, card });
 
@@ -131,6 +136,9 @@ export class BondiService {
 
     this.addLog(gameState, `${winner.name} won trick (+${cards.length} cards)`);
 
+    // Store completed trick for display
+    gameState.lastCompletedTrick = [...gameState.currentTrick];
+    
     gameState.currentTrick = [];
     gameState.leadingSuit = null;
     gameState.currentPlayerIndex = winnerIndex;
@@ -148,6 +156,9 @@ export class BondiService {
 
     this.addLog(gameState, `${winner.name} won trick (cards discarded)`);
 
+    // Store completed trick for display
+    gameState.lastCompletedTrick = [...gameState.currentTrick];
+    
     gameState.currentTrick = [];
     gameState.leadingSuit = null;
 

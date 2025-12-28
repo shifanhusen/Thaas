@@ -26,6 +26,7 @@ interface GameState {
   gameStatus: 'waiting' | 'playing' | 'finished';
   winners: Player[];
   gameLog?: string[];
+  lastCompletedTrick?: { playerId: string; card: Card }[];
 }
 
 export default function BondiGamePage() {
@@ -38,41 +39,60 @@ export default function BondiGamePage() {
   const [displayTrick, setDisplayTrick] = useState<{ playerId: string; card: Card }[]>([]);
   const displayTrickRef = useRef<{ playerId: string; card: Card }[]>([]);
   const clearTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTrickLengthRef = useRef<number>(0);
 
   // Trick visibility effect
   useEffect(() => {
     if (!gameState) return;
 
     const currentTrick = gameState.currentTrick;
+    const lastCompleted = gameState.lastCompletedTrick;
+    const currentLength = currentTrick.length;
 
-    if (currentTrick.length > 0) {
-      // Clear any pending timer
+    // If there's a completed trick to show, display it
+    if (lastCompleted && lastCompleted.length > 0) {
       if (clearTimerRef.current) {
         clearTimeout(clearTimerRef.current);
         clearTimerRef.current = null;
       }
       
-      // Show current trick cards immediately
+      setDisplayTrick([...lastCompleted]);
+      displayTrickRef.current = [...lastCompleted];
+      lastTrickLengthRef.current = lastCompleted.length;
+      
+      // Start timer to clear after 3 seconds
+      clearTimerRef.current = setTimeout(() => {
+        setDisplayTrick([]);
+        displayTrickRef.current = [];
+        clearTimerRef.current = null;
+      }, 3000);
+    }
+    // Track if trick is growing (cards being added)
+    else if (currentLength > lastTrickLengthRef.current) {
+      // Cards being added to trick
+      if (clearTimerRef.current) {
+        clearTimeout(clearTimerRef.current);
+        clearTimerRef.current = null;
+      }
+      
       const newTrick = [...currentTrick];
       setDisplayTrick(newTrick);
       displayTrickRef.current = newTrick;
-    } else if (displayTrickRef.current.length > 0) {
-      // Trick cleared by backend - schedule clearing display after 3 seconds
-      if (!clearTimerRef.current) {
-        clearTimerRef.current = setTimeout(() => {
-          setDisplayTrick([]);
-          displayTrickRef.current = [];
-          clearTimerRef.current = null;
-        }, 3000);
-      }
+      lastTrickLengthRef.current = currentLength;
+    } 
+    // First card of new trick after display cleared
+    else if (currentLength > 0 && displayTrickRef.current.length === 0 && !lastCompleted) {
+      const newTrick = [...currentTrick];
+      setDisplayTrick(newTrick);
+      displayTrickRef.current = newTrick;
+      lastTrickLengthRef.current = currentLength;
     }
 
     return () => {
-      if (clearTimerRef.current) {
-        clearTimeout(clearTimerRef.current);
-      }
+      // Don't clear timer on unmount, let it complete
     };
-  }, [gameState?.currentTrick]);
+  }, [gameState?.currentTrick, gameState?.lastCompletedTrick]);
+
 
   useEffect(() => {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080', {

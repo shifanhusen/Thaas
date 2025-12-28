@@ -23,4 +23,5 @@ export interface GameState {
   gameStatus: 'waiting' | 'playing' | 'finished';
   winners: Player[]; // List of players in order of finishing
   gameLog: string[];
+  lastCompletedTrick?: { playerId: string; card: Card }[]; // For display purposes
 }
