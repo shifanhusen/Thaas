@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import io, { Socket } from 'socket.io-client';
 import Link from 'next/link';
 
@@ -36,22 +36,42 @@ export default function BondiGamePage() {
   const [joined, setJoined] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [displayTrick, setDisplayTrick] = useState<{ playerId: string; card: Card }[]>([]);
+  const displayTrickRef = useRef<{ playerId: string; card: Card }[]>([]);
+  const clearTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Trick visibility effect
   useEffect(() => {
     if (!gameState) return;
 
-    if (gameState.currentTrick.length > 0) {
-      // Always show current trick cards immediately
-      setDisplayTrick([...gameState.currentTrick]);
-    } else if (displayTrick.length > 0) {
-      // Trick just cleared by backend - keep showing for 3 seconds
-      const timer = setTimeout(() => {
-        setDisplayTrick([]);
-      }, 3000);
+    const currentTrick = gameState.currentTrick;
+
+    if (currentTrick.length > 0) {
+      // Clear any pending timer
+      if (clearTimerRef.current) {
+        clearTimeout(clearTimerRef.current);
+        clearTimerRef.current = null;
+      }
       
-      return () => clearTimeout(timer);
+      // Show current trick cards immediately
+      const newTrick = [...currentTrick];
+      setDisplayTrick(newTrick);
+      displayTrickRef.current = newTrick;
+    } else if (displayTrickRef.current.length > 0) {
+      // Trick cleared by backend - schedule clearing display after 3 seconds
+      if (!clearTimerRef.current) {
+        clearTimerRef.current = setTimeout(() => {
+          setDisplayTrick([]);
+          displayTrickRef.current = [];
+          clearTimerRef.current = null;
+        }, 3000);
+      }
     }
+
+    return () => {
+      if (clearTimerRef.current) {
+        clearTimeout(clearTimerRef.current);
+      }
+    };
   }, [gameState?.currentTrick]);
 
   useEffect(() => {

@@ -67,13 +67,6 @@ export class BondiService {
   }
 
   processTurn(gameState: GameState, player: Player, card: Card): GameState {
-    // Clear previous trick if it's still showing
-    if (gameState.trickWinnerId && gameState.currentTrick.length > 0) {
-      gameState.currentTrick = [];
-      gameState.leadingSuit = null;
-      gameState.trickWinnerId = undefined;
-    }
-
     player.hand = player.hand.filter(c => !(c.suit === card.suit && c.rank === card.rank));
     gameState.currentTrick.push({ playerId: player.id, card });
 
@@ -138,8 +131,8 @@ export class BondiService {
 
     this.addLog(gameState, `${winner.name} won trick (+${cards.length} cards)`);
 
-    // Mark trick as complete but don't clear yet - let next move clear it
-    gameState.trickWinnerId = winnerId;
+    gameState.currentTrick = [];
+    gameState.leadingSuit = null;
     gameState.currentPlayerIndex = winnerIndex;
 
     this.checkWinCondition(gameState);
@@ -155,18 +148,13 @@ export class BondiService {
 
     this.addLog(gameState, `${winner.name} won trick (cards discarded)`);
 
-    // Mark trick as complete but don't clear yet - let next move clear it
-    gameState.trickWinnerId = winnerId;
+    gameState.currentTrick = [];
+    gameState.leadingSuit = null;
 
     // Check for finishers
     this.checkWinCondition(gameState);
 
-    if (gameState.gameStatus === 'finished') {
-      // Game over, clear the trick immediately
-      gameState.currentTrick = [];
-      gameState.leadingSuit = null;
-      return gameState;
-    }
+    if (gameState.gameStatus === 'finished') return gameState;
 
     if (winner.isSpectator) {
         // Winner finished, pass lead to next active player
