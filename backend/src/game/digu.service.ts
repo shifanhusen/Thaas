@@ -138,10 +138,12 @@ export class DiguService {
     return deadwoodCards.reduce((sum, card) => sum + this.cardValues[card.rank], 0);
   }
 
-  // Check if player can knock (deadwood <= 10)
+  // Check if player can knock (Strict Digu Rule: Deadwood must be 0)
   canKnock(player: DiguPlayer): boolean {
     const deadwood = this.calculateDeadwood(player.hand, player.melds);
-    return deadwood <= 10;
+    // User Requirement: "Once a player creates two sets of three-card sequences and one four-card sequence, they win."
+    // This implies 0 deadwood.
+    return deadwood === 0;
   }
 
   // Check for Big Digu (all cards melded at start)

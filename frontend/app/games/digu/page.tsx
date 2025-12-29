@@ -192,7 +192,7 @@ function RoundEndView({
           // Position styles
           let style: any = {};
           if (pos === 'bottom') style = { bottom: '20px', left: '50%', transform: 'translateX(-50%)' };
-          if (pos === 'top') style = { top: '20px', left: '50%', transform: 'translateX(-50%) rotate(180deg)' };
+          if (pos === 'top') style = { top: '20px', left: '50%', transform: 'translateX(-50%)' }; // Removed rotation
           if (pos === 'left') style = { left: '20px', top: '50%', transform: 'translateY(-50%) rotate(90deg)' };
           if (pos === 'right') style = { right: '20px', top: '50%', transform: 'translateY(-50%) rotate(-90deg)' };
 
@@ -209,7 +209,7 @@ function RoundEndView({
               <div className={`
                 bg-black/60 backdrop-blur px-4 py-2 rounded-full border flex items-center gap-2
                 ${isWinner ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'border-white/10'}
-                ${pos === 'top' || pos === 'left' || pos === 'right' ? 'rotate-180' : ''} 
+                ${pos === 'left' || pos === 'right' ? 'rotate-180' : ''} 
               `}>
                 {isWinner && <span className="text-xl">👑</span>}
                 <span className="font-bold text-white">{player.name}</span>
@@ -417,31 +417,41 @@ export default function DiguGamePage() {
   
   useEffect(() => {
     if (myPlayer?.hand) {
-      // Only update local hand if the cards have actually changed (added/removed)
-      // This prevents overwriting the user's custom sort order
-      const serverIds = myPlayer.hand.map(getCardId).sort().join(',');
-      const localIds = localHand.map(getCardId).sort().join(',');
+      const serverIds = myPlayer.hand.map(getCardId);
+      const localIds = localHand.map(getCardId);
       
-      // Check if we just drew a card (hand size increased by 1)
-      const justDrew = myPlayer.hand.length === localHand.length + 1;
+      // 1. Check if it's a new round (hand completely different)
+      const isNewRound = localHand.length === 0 || (localHand.length > 0 && serverIds.length === 10 && localIds.length === 0);
+      
+      if (isNewRound) {
+        setLocalHand([...myPlayer.hand]);
+        return;
+      }
 
-      if (serverIds !== localIds) {
-        if (justDrew) {
-           // Find the new card
-           const localIdSet = new Set(localHand.map(getCardId));
-           const newCard = myPlayer.hand.find(c => !localIdSet.has(getCardId(c)));
-           if (newCard) {
-             // Append new card to the end instead of resetting order
-             setLocalHand([...localHand, newCard]);
-           } else {
-             // Fallback if logic fails
-             setLocalHand([...myPlayer.hand]);
-           }
-        } else {
-           // For other changes (discard, new round), sync fully but try to keep order if possible
-           // For now, simple sync is safer for non-draw events
-           setLocalHand([...myPlayer.hand]);
-        }
+      // 2. Check for added cards (Draw)
+      const addedCards = myPlayer.hand.filter(c => !localIds.includes(getCardId(c)));
+      if (addedCards.length > 0) {
+        setLocalHand(prev => [...prev, ...addedCards]);
+        return;
+      }
+
+      // 3. Check for removed cards (Discard)
+      const serverIdSet = new Set(serverIds);
+      const removedCards = localHand.filter(c => !serverIdSet.has(getCardId(c)));
+      if (removedCards.length > 0) {
+        setLocalHand(prev => prev.filter(c => serverIdSet.has(getCardId(c))));
+        return;
+      }
+
+      // 4. If counts match but content is different (shouldn't happen often in this game logic unless swap)
+      // If the set of cards is identical (ignoring order), DO NOT update localHand.
+      // This preserves the user's drag-and-drop order.
+      const sortedServer = [...serverIds].sort().join(',');
+      const sortedLocal = [...localIds].sort().join(',');
+      
+      if (sortedServer !== sortedLocal) {
+         // Fallback: If the actual cards are different, we must sync.
+         setLocalHand([...myPlayer.hand]);
       }
     }
   }, [myPlayer?.hand, gameState?.currentRound]); // Sync on hand change or new round
