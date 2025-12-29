@@ -111,10 +111,15 @@ export class DiguGameService {
       player.hand.push(room.deck.pop()!);
     } else {
       // Reshuffle discard pile if deck empty
-      const topCard = room.discardPile.pop()!;
-      room.deck = this.diguService.shuffle([...room.discardPile]);
-      room.discardPile = [topCard];
-      player.hand.push(room.deck.pop()!);
+      if (room.discardPile.length > 1) {
+        const topCard = room.discardPile.pop()!;
+        room.deck = this.diguService.shuffle([...room.discardPile]);
+        room.discardPile = [topCard];
+        player.hand.push(room.deck.pop()!);
+      } else {
+        // Cannot draw - deck empty and discard pile insufficient
+        return null;
+      }
     }
 
     return room;

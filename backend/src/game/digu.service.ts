@@ -246,12 +246,28 @@ export class DiguService {
     const topDiscard = gameState.discardPile[gameState.discardPile.length - 1];
     const wouldFormMeld = this.wouldCardHelpMeld(botPlayer.hand, topDiscard);
 
-    if (wouldFormMeld && Math.random() > 0.3) {
+    if (wouldFormMeld && Math.random() > 0.3 && gameState.discardPile.length > 0) {
       botPlayer.hand.push(gameState.discardPile.pop()!);
       this.addLog(gameState, `${botPlayer.name} drew from discard pile`);
     } else {
-      botPlayer.hand.push(gameState.deck.pop()!);
-      this.addLog(gameState, `${botPlayer.name} drew from deck`);
+      // Check if deck is empty
+      if (gameState.deck.length === 0) {
+        if (gameState.discardPile.length > 1) {
+          const topCard = gameState.discardPile.pop()!;
+          gameState.deck = this.shuffle([...gameState.discardPile]);
+          gameState.discardPile = [topCard];
+          this.addLog(gameState, `🔄 Deck reshuffled from discard pile`);
+        } else {
+           // Edge case: No cards to draw (should be very rare)
+           this.addLog(gameState, `⚠️ Deck and discard empty, cannot draw.`);
+           return; 
+        }
+      }
+      
+      if (gameState.deck.length > 0) {
+        botPlayer.hand.push(gameState.deck.pop()!);
+        this.addLog(gameState, `${botPlayer.name} drew from deck`);
+      }
     }
 
     // Try to form melds
