@@ -84,51 +84,64 @@ export default function DiguGamePage() {
       setIsConnected(false);
     });
 
-    newSocket.on('roomCreated', (data: { data: DiguGameState }) => {
+    newSocket.on('roomCreated', (data: any) => {
       console.log('Room created:', data);
-      setGameState(data.data);
+      // Handle both direct data and wrapped data format
+      const roomData = data.data || data;
+      setGameState(roomData);
+      setRoomId(roomData.roomId);
       setJoined(true);
     });
 
-    newSocket.on('joined', (data: { data: DiguGameState }) => {
+    newSocket.on('joined', (data: any) => {
       console.log('Joined room:', data);
-      setGameState(data.data);
+      // Handle both direct data and wrapped data format
+      const roomData = data.data || data;
+      setGameState(roomData);
+      setRoomId(roomData.roomId); // Ensure roomId is set when joining
       setJoined(true);
     });
 
-    newSocket.on('playerJoined', (data: DiguGameState) => {
+    newSocket.on('playerJoined', (data: any) => {
       console.log('Player joined:', data);
-      setGameState(data);
+      const roomData = data.data || data;
+      setGameState(roomData);
     });
 
-    newSocket.on('gameStarted', (data: DiguGameState) => {
+    newSocket.on('gameStarted', (data: any) => {
       console.log('Game started:', data);
-      setGameState(data);
+      const roomData = data.data || data;
+      setGameState(roomData);
     });
 
-    newSocket.on('gameStateUpdate', (data: DiguGameState) => {
+    newSocket.on('gameStateUpdate', (data: any) => {
       console.log('Game state update:', data);
-      setGameState(data);
+      const roomData = data.data || data;
+      setGameState(roomData);
     });
 
-    newSocket.on('roundEnded', (data: DiguGameState) => {
+    newSocket.on('roundEnded', (data: any) => {
       console.log('Round ended:', data);
-      setGameState(data);
+      const roomData = data.data || data;
+      setGameState(roomData);
     });
 
-    newSocket.on('playerDropped', (data: DiguGameState) => {
+    newSocket.on('playerDropped', (data: any) => {
       console.log('Player dropped:', data);
-      setGameState(data);
+      const roomData = data.data || data;
+      setGameState(roomData);
     });
 
-    newSocket.on('voteUpdate', (data: DiguGameState) => {
+    newSocket.on('voteUpdate', (data: any) => {
       console.log('Vote update:', data);
-      setGameState(data);
+      const roomData = data.data || data;
+      setGameState(roomData);
     });
 
-    newSocket.on('newRoundStarted', (data: DiguGameState) => {
+    newSocket.on('newRoundStarted', (data: any) => {
       console.log('New round started:', data);
-      setGameState(data);
+      const roomData = data.data || data;
+      setGameState(roomData);
       setCurrentMelds([]);
       setSelectedCards([]);
     });
@@ -161,11 +174,19 @@ export default function DiguGamePage() {
 
   const createRoom = () => {
     if (!socket || !playerName.trim()) return;
+    if (!socket.connected) {
+      alert('Not connected to server. Please wait.');
+      return;
+    }
     socket.emit('createRoom', { name: playerName, gameType: 'digu' });
   };
 
   const joinRoom = () => {
     if (!socket || !playerName.trim() || !roomId.trim()) return;
+    if (!socket.connected) {
+      alert('Not connected to server. Please wait.');
+      return;
+    }
     socket.emit('joinRoom', { roomId: roomId.toUpperCase(), name: playerName });
   };
 
