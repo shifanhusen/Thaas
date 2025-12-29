@@ -129,6 +129,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const room = this.diguGameService.startGame(data.roomId);
       if (room) {
         this.server.to(data.roomId).emit('gameStarted', room);
+        this.handleBotTurns(data.roomId);
       }
     } else if (bondiRoom) {
       const room = this.gameService.startGame(data.roomId);
@@ -166,6 +167,30 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  private async handleBotTurns(roomId: string) {
+    let room = this.diguGameService.getRoom(roomId);
+    while (room && this.diguGameService.isBotTurn(roomId) && room.gameStatus === 'playing') {
+      // Delay for realism
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Check again in case room state changed during delay
+      if (!this.diguGameService.isBotTurn(roomId)) break;
+
+      room = this.diguGameService.playBotTurn(roomId);
+      if (room) {
+        if (room.gameStatus === 'roundEnd' || room.gameStatus === 'finished') {
+          this.server.to(roomId).emit('roundEnded', room);
+          // If round ended, stop bot loop
+          break;
+        } else {
+          this.server.to(roomId).emit('gameStateUpdate', room);
+        }
+      } else {
+        break;
+      }
+    }
+  }
+
   // Digu-specific events
   @SubscribeMessage('diguDrawCard')
   diguDrawCard(@MessageBody() data: { roomId: string; fromDiscard: boolean }, @ConnectedSocket() client: Socket) {
@@ -180,6 +205,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = this.diguGameService.discardCard(data.roomId, client.id, data.card);
     if (room) {
       this.server.to(data.roomId).emit('gameStateUpdate', room);
+      this.handleBotTurns(data.roomId);
     }
   }
 
@@ -220,6 +246,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const room = this.diguGameService.startNewRound(data.roomId);
     if (room) {
       this.server.to(data.roomId).emit('newRoundStarted', room);
+      this.handleBotTurns(data.roomId);
     }
   }
 }

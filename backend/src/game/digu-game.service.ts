@@ -264,6 +264,36 @@ export class DiguGameService {
     room.endGameVotes = {};
   }
 
+  // Check if current player is a bot
+  isBotTurn(roomId: string): boolean {
+    const room = this.rooms.get(roomId);
+    if (!room || room.gameStatus !== 'playing') return false;
+    const player = room.players[room.currentPlayerIndex];
+    return !!player && player.isBot;
+  }
+
+  // Execute a bot turn
+  playBotTurn(roomId: string): DiguGameState | null {
+    const room = this.rooms.get(roomId);
+    if (!room || room.gameStatus !== 'playing') return null;
+
+    const player = room.players[room.currentPlayerIndex];
+    if (!player || !player.isBot) return null;
+
+    // Execute bot logic
+    this.diguService.botTurn(room, player);
+
+    // Check if bot knocked
+    if (player.hasKnocked) {
+      return this.knock(roomId, player.id);
+    }
+
+    // Move to next player
+    room.currentPlayerIndex = (room.currentPlayerIndex + 1) % room.players.length;
+
+    return room;
+  }
+
   deleteRoom(roomId: string): void {
     this.rooms.delete(roomId);
     const timer = this.voteTimers.get(roomId);
