@@ -27,7 +27,7 @@ export class DiguHistoryService {
 
   async saveRound(gameId: string, roundNumber: number, winnerId: string | null, winnerName: string | null, scores: Record<string, number>) {
     const round = this.roundRepo.create({
-      game: { id: gameId },
+      game: { id: gameId } as DiguGame,
       roundNumber,
       winnerId,
       winnerName,
@@ -48,7 +48,7 @@ export class DiguHistoryService {
 
     // Save player stats
     const playerEntities = players.map(p => this.playerRepo.create({
-      game: { id: gameId },
+      game: { id: gameId } as DiguGame,
       playerId: p.id,
       playerName: p.name,
       isBot: p.isBot,
