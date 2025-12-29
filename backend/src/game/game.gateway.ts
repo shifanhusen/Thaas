@@ -249,4 +249,9 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.handleBotTurns(data.roomId);
     }
   }
+
+  @SubscribeMessage('sendEmote')
+  sendEmote(@MessageBody() data: { roomId: string; emoji: string }, @ConnectedSocket() client: Socket) {
+    this.server.to(data.roomId).emit('emoteReceived', { playerId: client.id, emoji: data.emoji });
+  }
 }

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import io, { Socket } from 'socket.io-client';
 import Link from 'next/link';
 import { Reorder, motion, AnimatePresence } from 'framer-motion';
+import { useGameSounds } from '@/hooks/useGameSounds';
 
 // --- TYPES ---
 interface Card {
@@ -129,27 +130,33 @@ function RoundEndView({
       className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center overflow-hidden"
     >
       {/* Center Info Panel */}
-      <div className="absolute z-20 flex flex-col items-center justify-center pointer-events-auto">
+      <div className="absolute z-20 flex flex-col items-center justify-center pointer-events-auto w-full px-4">
         <motion.div 
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ delay: 0.5 }}
-          className="bg-[#1e293b]/90 p-8 rounded-2xl border border-gray-700 shadow-2xl text-center max-w-md backdrop-blur-xl"
+          className="bg-white/10 backdrop-blur-2xl p-8 rounded-3xl border border-white/20 shadow-[0_0_50px_rgba(0,0,0,0.5)] text-center max-w-md w-full relative overflow-hidden"
         >
-          <h2 className="text-3xl font-black text-white mb-2">
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+          <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-yellow-500 mb-4 drop-shadow-sm">
             {gameState.gameStatus === 'finished' ? 'GAME OVER' : 'ROUND COMPLETE'}
           </h2>
           
           {/* Scores Summary */}
-          <div className="bg-black/40 p-4 rounded-xl mb-6 w-full">
+          <div className="bg-black/40 p-4 rounded-xl mb-6 w-full border border-white/5">
              {gameState.players
                .sort((a, b) => b.totalScore - a.totalScore)
                .map(p => (
-                 <div key={p.id} className="flex justify-between items-center mb-2 text-sm border-b border-white/5 pb-1 last:border-0">
-                   <span className="text-white font-bold">{p.name}</span>
-                   <div className="flex gap-4">
-                     <span className="text-gray-400 text-xs">Round: {p.roundScore > 0 ? `+${p.roundScore}` : p.roundScore}</span>
-                     <span className="font-mono font-bold text-yellow-400">{p.totalScore}</span>
+                 <div key={p.id} className="flex justify-between items-center mb-3 text-sm border-b border-white/5 pb-2 last:border-0 last:mb-0 last:pb-0">
+                   <div className="flex items-center gap-2">
+                     <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-[10px] font-bold">{p.name.substring(0, 2)}</div>
+                     <span className="text-white font-bold">{p.name}</span>
+                   </div>
+                   <div className="flex gap-4 items-center">
+                     <span className={`text-xs font-bold ${p.roundScore > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                       {p.roundScore > 0 ? `+${p.roundScore}` : p.roundScore}
+                     </span>
+                     <span className="font-mono font-black text-xl text-yellow-400 w-12 text-right">{p.totalScore}</span>
                    </div>
                  </div>
                ))}
@@ -264,6 +271,49 @@ export default function DiguGamePage() {
   const [showMeldBuilder, setShowMeldBuilder] = useState(false);
   const [voteTimer, setVoteTimer] = useState<number | null>(null);
 
+  // --- NEW UI STATE ---
+  const { playSound } = useGameSounds();
+  const [lastAction, setLastAction] = useState<string | null>(null);
+  const [showChat, setShowChat] = useState(false);
+  const [activeEmotes, setActiveEmotes] = useState<{playerId: string, emoji: string, id: number}[]>([]);
+
+  // Sound & Log Effect
+  useEffect(() => {
+    if (!gameState?.gameLog?.length) return;
+    const latestLog = gameState.gameLog[gameState.gameLog.length - 1];
+    setLastAction(latestLog);
+    
+    // Auto-hide log after 3s
+    const timer = setTimeout(() => setLastAction(null), 3000);
+
+    // Play sounds based on log content
+    if (latestLog.includes('drew')) playSound('draw');
+    else if (latestLog.includes('knocked')) playSound('knock');
+    else if (latestLog.includes('wins')) playSound('win');
+    else if (latestLog.includes('started')) playSound('shuffle');
+    else playSound('place'); // Default for other actions
+
+    return () => clearTimeout(timer);
+  }, [gameState?.gameLog, playSound]);
+
+  // Sort Hand Logic
+  const sortHand = (type: 'rank' | 'suit') => {
+    const rankOrder = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    const suitOrder = ['S', 'H', 'D', 'C'];
+
+    const sorted = [...localHand].sort((a, b) => {
+      if (type === 'rank') {
+        const rankDiff = rankOrder.indexOf(a.rank) - rankOrder.indexOf(b.rank);
+        return rankDiff !== 0 ? rankDiff : suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
+      } else {
+        const suitDiff = suitOrder.indexOf(a.suit) - suitOrder.indexOf(b.suit);
+        return suitDiff !== 0 ? suitDiff : rankOrder.indexOf(a.rank) - rankOrder.indexOf(b.rank);
+      }
+    });
+    setLocalHand(sorted);
+    playSound('shuffle');
+  };
+
   // --- SOCKET SETUP ---
   useEffect(() => {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080', {
@@ -306,6 +356,14 @@ export default function DiguGamePage() {
       handleGameUpdate(data);
       setCurrentMelds([]);
       setSelectedCards([]);
+    });
+
+    newSocket.on('emoteReceived', (data: { playerId: string, emoji: string }) => {
+      const id = Date.now();
+      setActiveEmotes(prev => [...prev, { ...data, id }]);
+      setTimeout(() => {
+        setActiveEmotes(prev => prev.filter(e => e.id !== id));
+      }, 3000);
     });
 
     newSocket.on('error', (error: any) => {
@@ -466,6 +524,12 @@ export default function DiguGamePage() {
     socket.emit('diguStartNewRound', { roomId: gameState.roomId });
   };
 
+  const sendEmote = (emoji: string) => {
+    if (!socket || !gameState) return;
+    socket.emit('sendEmote', { roomId: gameState.roomId, emoji });
+    setShowChat(false);
+  };
+
   // --- RENDER HELPERS ---
   const isMyTurn = gameState && gameState.players[gameState.currentPlayerIndex]?.id === socket?.id;
   const canDraw = isMyTurn && myPlayer?.hand.length === 10;
@@ -573,9 +637,30 @@ export default function DiguGamePage() {
         <div className="flex gap-4 overflow-x-auto">
           {gameState.players.filter(p => p.id !== socket?.id).map(p => {
             const isCurrent = gameState.players[gameState.currentPlayerIndex].id === p.id;
+            const playerEmotes = activeEmotes.filter(e => e.playerId === p.id);
             return (
-              <div key={p.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${isCurrent ? 'border-yellow-500 bg-yellow-500/10' : 'border-white/10 bg-white/5'}`}>
-                <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-[10px]">{p.name.substring(0, 2)}</div>
+              <div key={p.id} className={`relative flex items-center gap-2 px-3 py-1.5 rounded-full border ${isCurrent ? 'border-yellow-500 bg-yellow-500/10' : 'border-white/10 bg-white/5'}`}>
+                {/* Emotes */}
+                <AnimatePresence>
+                  {playerEmotes.map(e => (
+                    <motion.div
+                      key={e.id}
+                      initial={{ opacity: 0, y: 0, scale: 0.5 }}
+                      animate={{ opacity: 1, y: -30, scale: 1.5 }}
+                      exit={{ opacity: 0, y: -50 }}
+                      className="absolute -top-2 left-4 text-3xl pointer-events-none z-50 drop-shadow-lg"
+                    >
+                      {e.emoji}
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+
+                <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-[10px] relative">
+                  {p.name.substring(0, 2)}
+                  {isCurrent && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-green-500 border-2 border-[#0f172a] rounded-full animate-pulse"></span>
+                  )}
+                </div>
                 <div className="flex flex-col">
                   <span className={`text-xs font-bold ${isCurrent ? 'text-yellow-400' : 'text-white'}`}>{p.name}</span>
                   <span className="text-[9px] text-gray-400">{p.hand.length} Cards</span>
@@ -588,6 +673,23 @@ export default function DiguGamePage() {
 
       {/* Center Table: Deck & Discard */}
       <div className="flex-1 flex items-center justify-center relative perspective-[1000px]">
+        
+        {/* Last Action Log */}
+        <AnimatePresence>
+          {lastAction && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 pointer-events-none"
+            >
+              <div className="bg-black/60 backdrop-blur-md text-white px-6 py-3 rounded-full border border-white/10 shadow-2xl font-bold text-lg">
+                {lastAction}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="relative flex gap-12 transform rotate-x-10">
           {/* Deck */}
           <div className="relative group">
@@ -646,18 +748,73 @@ export default function DiguGamePage() {
         <div className="max-w-5xl mx-auto">
           
           {/* Action Bar */}
-          <div className="flex justify-between items-end mb-6">
-            <div className="flex gap-2">
+          <div className="flex justify-between items-end mb-6 relative">
+            {/* Local Emotes Display */}
+            <AnimatePresence>
+              {activeEmotes.filter(e => e.playerId === socket?.id).map(e => (
+                <motion.div
+                  key={e.id}
+                  initial={{ opacity: 0, y: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, y: -50, scale: 1.5 }}
+                  exit={{ opacity: 0, y: -80 }}
+                  className="absolute bottom-full left-10 text-4xl pointer-events-none z-50 drop-shadow-lg"
+                >
+                  {e.emoji}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            <div className="flex gap-2 items-center">
+              {/* Chat/Emote Button */}
+              <div className="relative">
+                <button 
+                  onClick={() => setShowChat(!showChat)}
+                  className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-xl transition-colors border border-white/10"
+                >
+                  💬
+                </button>
+                
+                {/* Emote Picker Popup */}
+                <AnimatePresence>
+                  {showChat && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.8, y: 10 }}
+                      className="absolute bottom-14 left-0 bg-[#1e293b] border border-gray-700 p-2 rounded-xl shadow-xl grid grid-cols-4 gap-2 w-48 z-50"
+                    >
+                      {['👍', '👎', '😂', '😡', '😭', '🎉', '🤔', '👋'].map(emoji => (
+                        <button
+                          key={emoji}
+                          onClick={() => sendEmote(emoji)}
+                          className="text-2xl hover:bg-white/10 p-2 rounded transition-colors"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
               <button 
                 onClick={() => setShowMeldBuilder(!showMeldBuilder)}
                 className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${showMeldBuilder ? 'bg-purple-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
               >
                 🛠️ MELD BUILDER
               </button>
+              
+              {/* Sort Buttons */}
+              <div className="flex bg-black/40 rounded-lg p-1 gap-1 border border-white/10">
+                <button onClick={() => sortHand('rank')} className="px-3 py-1 rounded hover:bg-white/10 text-xs font-bold text-gray-300 transition-colors">SORT RANK</button>
+                <div className="w-px bg-white/10 my-1"></div>
+                <button onClick={() => sortHand('suit')} className="px-3 py-1 rounded hover:bg-white/10 text-xs font-bold text-gray-300 transition-colors">SORT SUIT</button>
+              </div>
+
               {myPlayer?.hand.length === 10 && isMyTurn && (
                 <button 
                   onClick={knock}
-                  className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg font-bold text-sm transition-all shadow-lg shadow-yellow-500/20"
+                  className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg font-bold text-sm transition-all shadow-lg shadow-yellow-500/20 ml-2"
                 >
                   🔔 KNOCK
                 </button>
@@ -741,6 +898,9 @@ export default function DiguGamePage() {
                   <Reorder.Item 
                     key={getCardId(card)} 
                     value={card}
+                    initial={{ opacity: 0, y: 100 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     className="relative -ml-12 first:ml-0 transition-all hover:z-50 hover:-translate-y-4"
                     style={{ zIndex: index }}
                   >
