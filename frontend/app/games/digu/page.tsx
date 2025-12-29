@@ -557,6 +557,8 @@ export default function DiguGamePage() {
   const isMyTurn = gameState && gameState.players[gameState.currentPlayerIndex]?.id === socket?.id;
   const canDraw = isMyTurn && myPlayer?.hand.length === 10;
   const canDiscard = isMyTurn && myPlayer?.hand.length === 11;
+  // Allow knock if hand is 10 OR 11 (if 11, one must be discarded)
+  const canKnock = isMyTurn && (myPlayer?.hand.length === 10 || myPlayer?.hand.length === 11);
 
   // --- RENDER: LOBBY / ENTRY ---
   if (!joined) {
@@ -834,7 +836,7 @@ export default function DiguGamePage() {
                 <button onClick={() => sortHand('suit')} className="px-3 py-1 rounded hover:bg-white/10 text-xs font-bold text-gray-300 transition-colors">SORT SUIT</button>
               </div>
 
-              {myPlayer?.hand.length === 10 && isMyTurn && (
+              {canKnock && (
                 <button 
                   onClick={knock}
                   className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg font-bold text-sm transition-all shadow-lg shadow-yellow-500/20 ml-2"

@@ -140,10 +140,21 @@ export class DiguService {
 
   // Check if player can knock (Strict Digu Rule: Deadwood must be 0)
   canKnock(player: DiguPlayer): boolean {
-    const deadwood = this.calculateDeadwood(player.hand, player.melds);
-    // User Requirement: "Once a player creates two sets of three-card sequences and one four-card sequence, they win."
-    // This implies 0 deadwood.
-    return deadwood === 0;
+    const meldedCards = new Set(player.melds.flatMap(m => m.cards.map(c => `${c.rank}${c.suit}`)));
+    const deadwoodCards = player.hand.filter(c => !meldedCards.has(`${c.rank}${c.suit}`));
+    
+    // Case 1: Hand size 10 (Start of turn or after discard)
+    if (player.hand.length === 10) {
+      return deadwoodCards.length === 0;
+    }
+    
+    // Case 2: Hand size 11 (After draw)
+    if (player.hand.length === 11) {
+      // Must have exactly 1 deadwood card (which will be discarded)
+      return deadwoodCards.length === 1;
+    }
+
+    return false;
   }
 
   // Check for Big Digu (all cards melded at start)
@@ -157,10 +168,25 @@ export class DiguService {
     const knocker = gameState.players.find(p => p.id === playerId);
     if (!knocker) throw new Error('Player not found');
 
+    // Handle 11th card discard if necessary
+    if (knocker.hand.length === 11) {
+        const meldedCards = new Set(knocker.melds.flatMap(m => m.cards.map(c => `${c.rank}${c.suit}`)));
+        const deadwoodCards = knocker.hand.filter(c => !meldedCards.has(`${c.rank}${c.suit}`));
+        
+        if (deadwoodCards.length === 1) {
+            const discardCard = deadwoodCards[0];
+            // Remove from hand
+            knocker.hand = knocker.hand.filter(c => !(c.suit === discardCard.suit && c.rank === discardCard.rank));
+            // Add to discard pile
+            gameState.discardPile.push(discardCard);
+            this.addLog(gameState, `🔔 ${knocker.name} discards ${discardCard.rank}${discardCard.suit} and knocks!`);
+        }
+    } else {
+        this.addLog(gameState, `🔔 ${knocker.name} knocks!`);
+    }
+
     knocker.hasKnocked = true;
     gameState.knockedPlayerId = playerId;
-
-    this.addLog(gameState, `🔔 ${knocker.name} knocked!`);
 
     // Calculate scores
     const scores: { [key: string]: number } = {};
