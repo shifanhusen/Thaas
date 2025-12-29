@@ -218,8 +218,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('diguKnock')
-  diguKnock(@MessageBody() data: { roomId: string }, @ConnectedSocket() client: Socket) {
-    const room = this.diguGameService.knock(data.roomId, client.id);
+  diguKnock(@MessageBody() data: { roomId: string; melds?: any[] }, @ConnectedSocket() client: Socket) {
+    const room = this.diguGameService.knock(data.roomId, client.id, data.melds);
     if (room) {
       this.server.to(data.roomId).emit('roundEnded', room);
     }

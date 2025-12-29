@@ -160,12 +160,21 @@ export class DiguGameService {
   }
 
   // Player knocks
-  knock(roomId: string, playerId: string): DiguGameState | null {
+  knock(roomId: string, playerId: string, melds?: any[]): DiguGameState | null {
     const room = this.rooms.get(roomId);
     if (!room) return null;
 
     const player = room.players.find(p => p.id === playerId);
-    if (!player || !this.diguService.canKnock(player)) return null;
+    if (!player) return null;
+
+    // If melds provided, update player melds first
+    if (melds && Array.isArray(melds)) {
+      player.melds = melds.filter(meld => 
+        this.diguService.validateMeld(meld.cards).isValid
+      );
+    }
+
+    if (!this.diguService.canKnock(player)) return null;
 
     // Process knock and calculate scores
     const result = this.diguService.processKnock(room, playerId);

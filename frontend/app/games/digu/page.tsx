@@ -498,8 +498,20 @@ export default function DiguGamePage() {
       return;
     }
     const newMeld: Meld = { type, cards: [...selectedCards] };
-    setCurrentMelds([...currentMelds, newMeld]);
+    const updatedMelds = [...currentMelds, newMeld];
+    setCurrentMelds(updatedMelds);
     setSelectedCards([]);
+
+    // Auto-sort hand to move melded cards to the left
+    const meldedCardIds = new Set(updatedMelds.flatMap(m => m.cards.map(getCardId)));
+    const sortedHand = [...localHand].sort((a, b) => {
+      const aMelded = meldedCardIds.has(getCardId(a));
+      const bMelded = meldedCardIds.has(getCardId(b));
+      if (aMelded && !bMelded) return -1;
+      if (!aMelded && bMelded) return 1;
+      return 0;
+    });
+    setLocalHand(sortedHand);
   };
 
   const removeMeld = (index: number) => {
@@ -514,7 +526,8 @@ export default function DiguGamePage() {
 
   const knock = () => {
     if (!socket || !gameState) return;
-    socket.emit('diguKnock', { roomId: gameState.roomId });
+    // Send current melds from the builder along with the knock request
+    socket.emit('diguKnock', { roomId: gameState.roomId, melds: currentMelds });
   };
 
   const dropOut = () => {
@@ -904,6 +917,9 @@ export default function DiguGamePage() {
             >
               {localHand.map((card, index) => {
                 const isSelected = selectedCards.some(c => c.suit === card.suit && c.rank === card.rank);
+                // Check if card is in any active meld
+                const isMelded = currentMelds.some(m => m.cards.some(c => c.suit === card.suit && c.rank === card.rank));
+                
                 return (
                   <Reorder.Item 
                     key={getCardId(card)} 
@@ -918,9 +934,17 @@ export default function DiguGamePage() {
                       card={card} 
                       isSelected={isSelected}
                       isDraggable={true}
-                      className="w-28 h-40 md:w-32 md:h-48 shadow-2xl"
+                      className={`
+                        w-28 h-40 md:w-32 md:h-48 shadow-2xl
+                        ${isMelded ? 'ring-2 ring-green-500 bg-green-900/20 brightness-75' : ''}
+                      `}
                       onClick={() => toggleCardSelection(card)}
                     />
+                    {isMelded && (
+                      <div className="absolute -top-2 right-2 bg-green-500 text-black text-[10px] font-bold px-1.5 rounded-full z-50">
+                        ✓
+                      </div>
+                    )}
                   </Reorder.Item>
                 );
               })}
