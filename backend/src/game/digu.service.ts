@@ -199,6 +199,10 @@ export class DiguService {
         if (isGin || isBigDigu) {
           // Knocker gets opponent's deadwood
           knockerScore += playerDeadwood;
+          // Opponent loses points equal to their deadwood (optional rule, usually they just get 0 points in this round, but let's deduct for clarity if needed)
+          // Standard Gin Rummy: Loser gets 0 points for the round, winner gets points.
+          // If you want to DEDUCT from total score:
+          // p.totalScore -= playerDeadwood; 
         } else {
           // Check for undercut
           if (playerDeadwood <= knockerDeadwood) {
@@ -210,6 +214,10 @@ export class DiguService {
             knockerScore += (playerDeadwood - knockerDeadwood);
           }
         }
+        
+        // Deduct deadwood from total score (House Rule: Deadwood Penalty)
+        // This ensures players are penalized for holding high cards
+        p.totalScore -= playerDeadwood;
       }
     });
 
@@ -221,6 +229,11 @@ export class DiguService {
       if (player) {
         player.roundScore = score;
         player.totalScore += score;
+        
+        // Also deduct knocker's deadwood if not Gin
+        if (playerId === knocker.id && !isGin && !isBigDigu) {
+             player.totalScore -= knockerDeadwood;
+        }
       }
     });
 

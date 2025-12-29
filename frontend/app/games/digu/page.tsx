@@ -90,7 +90,7 @@ function PlayingCard({
     >
       {/* Overlay for selection visibility */}
       {isSelected && (
-        <div className="absolute inset-0 bg-yellow-400/20 rounded-lg pointer-events-none" />
+        <div className="absolute inset-0 bg-yellow-400/40 rounded-lg pointer-events-none border-4 border-yellow-500 animate-pulse" />
       )}
     </div>
   );
@@ -280,11 +280,8 @@ export default function DiguGamePage() {
       setIsConnected(true);
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('Disconnected from server');
-      setIsConnected(false);
-    });
-
+    // Reconnection logic handled in separate effect
+    
     const handleGameUpdate = (data: any) => {
       const roomData = data.data || data;
       setGameState(roomData);
@@ -321,6 +318,42 @@ export default function DiguGamePage() {
     };
   }, []);
 
+  // --- RECONNECTION LOGIC ---
+  useEffect(() => {
+    if (!socket) return;
+
+    let disconnectTimer: NodeJS.Timeout;
+
+    const handleDisconnect = () => {
+      console.log('Disconnected, starting 60s timer...');
+      setIsConnected(false);
+      disconnectTimer = setTimeout(() => {
+        console.log('Reconnection timed out, redirecting...');
+        window.location.href = '/';
+      }, 60000);
+    };
+
+    const handleReconnect = () => {
+      console.log('Reconnected!');
+      setIsConnected(true);
+      if (disconnectTimer) clearTimeout(disconnectTimer);
+      
+      // Re-join room if we were in one
+      if (roomId && playerName) {
+        socket.emit('joinRoom', { roomId, name: playerName });
+      }
+    };
+
+    socket.on('disconnect', handleDisconnect);
+    socket.on('connect', handleReconnect);
+
+    return () => {
+      socket.off('disconnect', handleDisconnect);
+      socket.off('connect', handleReconnect);
+      if (disconnectTimer) clearTimeout(disconnectTimer);
+    };
+  }, [socket, roomId, playerName]);
+
   // --- SYNC LOCAL HAND ---
   const myPlayer = gameState?.players.find(p => p.id === socket?.id);
   
@@ -331,12 +364,26 @@ export default function DiguGamePage() {
       const serverIds = myPlayer.hand.map(getCardId).sort().join(',');
       const localIds = localHand.map(getCardId).sort().join(',');
       
+      // Check if we just drew a card (hand size increased by 1)
+      const justDrew = myPlayer.hand.length === localHand.length + 1;
+
       if (serverIds !== localIds) {
-        // If cards changed, try to preserve order of existing cards
-        const newHand = [...myPlayer.hand];
-        // Simple strategy: just set it for now to ensure sync, 
-        // improving this would require complex diffing to keep order
-        setLocalHand(newHand);
+        if (justDrew) {
+           // Find the new card
+           const localIdSet = new Set(localHand.map(getCardId));
+           const newCard = myPlayer.hand.find(c => !localIdSet.has(getCardId(c)));
+           if (newCard) {
+             // Append new card to the end instead of resetting order
+             setLocalHand([...localHand, newCard]);
+           } else {
+             // Fallback if logic fails
+             setLocalHand([...myPlayer.hand]);
+           }
+        } else {
+           // For other changes (discard, new round), sync fully but try to keep order if possible
+           // For now, simple sync is safer for non-draw events
+           setLocalHand([...myPlayer.hand]);
+        }
       }
     }
   }, [myPlayer?.hand, gameState?.currentRound]); // Sync on hand change or new round
