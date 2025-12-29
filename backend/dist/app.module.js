@@ -17,6 +17,7 @@ const auth_module_1 = require("./auth/auth.module");
 const game_module_1 = require("./game/game.module");
 const user_entity_1 = require("./users/user.entity");
 const game_history_entity_1 = require("./game/game-history.entity");
+const digu_entities_1 = require("./game/digu-entities");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -25,20 +26,28 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
+                envFilePath: '.env',
             }),
             typeorm_1.TypeOrmModule.forRootAsync({
                 imports: [config_1.ConfigModule],
-                useFactory: (configService) => ({
-                    type: 'postgres',
-                    host: configService.get('DATABASE_HOST'),
-                    port: configService.get('DATABASE_PORT'),
-                    username: configService.get('DATABASE_USER'),
-                    password: configService.get('DATABASE_PASSWORD'),
-                    database: configService.get('DATABASE_NAME'),
-                    entities: [user_entity_1.User, game_history_entity_1.GameHistory],
-                    synchronize: false,
-                    logging: false,
-                }),
+                useFactory: (configService) => {
+                    console.log('Current Directory:', process.cwd());
+                    const host = configService.get('DATABASE_HOST');
+                    console.log('----------------------------------------');
+                    console.log('Connecting to DB Host:', host);
+                    console.log('----------------------------------------');
+                    return {
+                        type: 'postgres',
+                        host: configService.get('DATABASE_HOST'),
+                        port: configService.get('DATABASE_PORT'),
+                        username: configService.get('DATABASE_USER'),
+                        password: configService.get('DATABASE_PASSWORD'),
+                        database: configService.get('DATABASE_NAME'),
+                        entities: [user_entity_1.User, game_history_entity_1.GameHistory, digu_entities_1.DiguGame, digu_entities_1.DiguGamePlayer, digu_entities_1.DiguRound],
+                        synchronize: false,
+                        logging: true,
+                    };
+                },
                 inject: [config_1.ConfigService],
             }),
             users_module_1.UsersModule,

@@ -14,20 +14,29 @@ import { DiguGame, DiguGamePlayer, DiguRound } from './game/digu-entities';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        host: configService.get<string>('DATABASE_HOST'),
-        port: configService.get<number>('DATABASE_PORT'),
-        username: configService.get<string>('DATABASE_USER'),
-        password: configService.get<string>('DATABASE_PASSWORD'),
-        database: configService.get<string>('DATABASE_NAME'),
-        entities: [User, GameHistory, DiguGame, DiguGamePlayer, DiguRound],
-        synchronize: false, // Changed to false - use migrations instead
-        logging: false,
-      }),
+      useFactory: (configService: ConfigService) => {
+        console.log('Current Directory:', process.cwd());
+        const host = configService.get<string>('DATABASE_HOST');
+        console.log('----------------------------------------');
+        console.log('Connecting to DB Host:', host);
+        console.log('----------------------------------------');
+        return {
+          type: 'postgres',
+          host: configService.get<string>('DATABASE_HOST'),
+          port: configService.get<number>('DATABASE_PORT'),
+          username: configService.get<string>('DATABASE_USER'),
+          password: configService.get<string>('DATABASE_PASSWORD'),
+          database: configService.get<string>('DATABASE_NAME'),
+          entities: [User, GameHistory, DiguGame, DiguGamePlayer, DiguRound],
+          synchronize: false,
+          logging: true,
+          // ssl: { rejectUnauthorized: false }, // Uncomment if using SSL
+        };
+      },
       inject: [ConfigService],
     }),
     UsersModule,

@@ -11,13 +11,13 @@ export class DiguGame {
   @CreateDateColumn({ name: 'start_time' })
   startTime: Date;
 
-  @Column({ name: 'end_time', nullable: true })
+  @Column({ name: 'end_time', type: 'timestamptz', nullable: true })
   endTime: Date | null;
 
-  @Column({ name: 'winner_id', nullable: true })
+  @Column({ name: 'winner_id', type: 'varchar', nullable: true })
   winnerId: string | null;
 
-  @Column({ name: 'winner_name', nullable: true })
+  @Column({ name: 'winner_name', type: 'varchar', nullable: true })
   winnerName: string | null;
 
   @Column({ name: 'total_rounds', default: 0 })
@@ -70,10 +70,10 @@ export class DiguRound {
   @Column({ name: 'round_number' })
   roundNumber: number;
 
-  @Column({ name: 'winner_id', nullable: true })
+  @Column({ name: 'winner_id', type: 'varchar', nullable: true })
   winnerId: string | null;
 
-  @Column({ name: 'winner_name', nullable: true })
+  @Column({ name: 'winner_name', type: 'varchar', nullable: true })
   winnerName: string | null;
 
   @Column('simple-json')

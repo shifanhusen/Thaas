@@ -17,12 +17,14 @@ const digu_game_service_1 = require("./digu-game.service");
 const game_history_service_1 = require("./game-history.service");
 const game_history_entity_1 = require("./game-history.entity");
 const game_history_controller_1 = require("./game-history.controller");
+const digu_entities_1 = require("./digu-entities");
+const digu_history_service_1 = require("./digu-history.service");
 let GameModule = class GameModule {
 };
 exports.GameModule = GameModule;
 exports.GameModule = GameModule = __decorate([
     (0, common_1.Module)({
-        imports: [typeorm_1.TypeOrmModule.forFeature([game_history_entity_1.GameHistory])],
+        imports: [typeorm_1.TypeOrmModule.forFeature([game_history_entity_1.GameHistory, digu_entities_1.DiguGame, digu_entities_1.DiguGamePlayer, digu_entities_1.DiguRound])],
         controllers: [game_history_controller_1.GameHistoryController],
         providers: [
             game_gateway_1.GameGateway,
@@ -31,8 +33,9 @@ exports.GameModule = GameModule = __decorate([
             digu_service_1.DiguService,
             digu_game_service_1.DiguGameService,
             game_history_service_1.GameHistoryService,
+            digu_history_service_1.DiguHistoryService,
         ],
-        exports: [game_history_service_1.GameHistoryService],
+        exports: [game_history_service_1.GameHistoryService, digu_history_service_1.DiguHistoryService],
     })
 ], GameModule);
 //# sourceMappingURL=game.module.js.map

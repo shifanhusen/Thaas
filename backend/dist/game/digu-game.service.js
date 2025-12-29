@@ -12,12 +12,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DiguGameService = void 0;
 const common_1 = require("@nestjs/common");
 const digu_service_1 = require("./digu.service");
+const digu_history_service_1 = require("./digu-history.service");
 let DiguGameService = class DiguGameService {
     diguService;
+    historyService;
     rooms = new Map();
     voteTimers = new Map();
-    constructor(diguService) {
+    constructor(diguService, historyService) {
         this.diguService = diguService;
+        this.historyService = historyService;
     }
     generateRoomCode() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -72,6 +75,9 @@ let DiguGameService = class DiguGameService {
         room.currentRound = 1;
         room.gameLog = [`🎮 Game started with ${room.players.length} players`];
         this.diguService.dealCards(room);
+        this.historyService.createGame(roomId).then(id => {
+            room.dbGameId = id;
+        });
         return room;
     }
     startNewRound(roomId) {
@@ -155,10 +161,18 @@ let DiguGameService = class DiguGameService {
             return null;
         const result = this.diguService.processKnock(room, playerId);
         room.gameStatus = 'roundEnd';
+        if (room.dbGameId) {
+            const scores = {};
+            room.players.forEach(p => scores[p.id] = p.roundScore);
+            this.historyService.saveRound(room.dbGameId, room.currentRound, result.winnerId, room.players.find(p => p.id === result.winnerId)?.name || null, scores);
+        }
         const winner = room.players.find(p => p.totalScore >= room.targetScore);
         if (winner) {
             room.gameStatus = 'finished';
             room.gameLog.push(`🏆 ${winner.name} wins the game with ${winner.totalScore} points!`);
+            if (room.dbGameId) {
+                this.historyService.finishGame(room.dbGameId, winner.id, winner.name, room.players, room.currentRound);
+            }
         }
         return room;
     }
@@ -171,6 +185,9 @@ let DiguGameService = class DiguGameService {
         if (activePlayers.length === 1) {
             room.gameStatus = 'finished';
             room.gameLog.push(`🏆 ${activePlayers[0].name} wins by default!`);
+            if (room.dbGameId) {
+                this.historyService.finishGame(room.dbGameId, activePlayers[0].id, activePlayers[0].name, room.players, room.currentRound);
+            }
         }
         return room;
     }
@@ -224,6 +241,10 @@ let DiguGameService = class DiguGameService {
         if (endVotes > continueVotes) {
             room.gameStatus = 'finished';
             room.gameLog.push(`🏁 Game ended by majority vote (${endVotes}-${continueVotes})`);
+            if (room.dbGameId) {
+                const winner = room.players.reduce((prev, current) => (prev.totalScore > current.totalScore) ? prev : current);
+                this.historyService.finishGame(room.dbGameId, winner.id, winner.name, room.players, room.currentRound);
+            }
         }
         else {
             room.gameLog.push(`▶️ Game continues (${continueVotes}-${endVotes})`);
@@ -264,6 +285,7 @@ let DiguGameService = class DiguGameService {
 exports.DiguGameService = DiguGameService;
 exports.DiguGameService = DiguGameService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [digu_service_1.DiguService])
+    __metadata("design:paramtypes", [digu_service_1.DiguService,
+        digu_history_service_1.DiguHistoryService])
 ], DiguGameService);
 //# sourceMappingURL=digu-game.service.js.map

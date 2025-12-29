@@ -1,10 +1,12 @@
 import { DiguService } from './digu.service';
 import { DiguGameState, DiguPlayer } from './digu.types';
+import { DiguHistoryService } from './digu-history.service';
 export declare class DiguGameService {
     private diguService;
+    private historyService;
     private rooms;
     private voteTimers;
-    constructor(diguService: DiguService);
+    constructor(diguService: DiguService, historyService: DiguHistoryService);
     private generateRoomCode;
     createRoom(host: DiguPlayer): DiguGameState;
     joinRoom(roomId: string, player: DiguPlayer): DiguGameState | null;

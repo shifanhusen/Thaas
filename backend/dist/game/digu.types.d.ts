@@ -36,6 +36,7 @@ export interface DiguGameState {
     };
     endGameVoteTimer: number | null;
     targetScore: number;
+    dbGameId?: string;
 }
 export interface MeldValidation {
     isValid: boolean;
