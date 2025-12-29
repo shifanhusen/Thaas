@@ -96,6 +96,159 @@ function PlayingCard({
   );
 }
 
+// --- ROUND END VIEW COMPONENT ---
+function RoundEndView({ 
+  gameState, 
+  myPlayerId, 
+  onNextRound, 
+  onVote,
+  voteTimer 
+}: { 
+  gameState: DiguGameState, 
+  myPlayerId?: string, 
+  onNextRound: () => void, 
+  onVote: (vote: boolean) => void,
+  voteTimer: number | null
+}) {
+  const myIndex = gameState.players.findIndex(p => p.id === myPlayerId);
+  const totalPlayers = gameState.players.length;
+
+  const getPosition = (index: number) => {
+    if (myIndex === -1) return index === 0 ? 'bottom' : index === 1 ? 'left' : index === 2 ? 'top' : 'right';
+    
+    const diff = (index - myIndex + totalPlayers) % totalPlayers;
+    if (totalPlayers === 2) return diff === 0 ? 'bottom' : 'top';
+    if (totalPlayers === 3) return diff === 0 ? 'bottom' : diff === 1 ? 'left' : 'right';
+    return diff === 0 ? 'bottom' : diff === 1 ? 'left' : diff === 2 ? 'top' : 'right';
+  };
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="absolute inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center overflow-hidden"
+    >
+      {/* Center Info Panel */}
+      <div className="absolute z-20 flex flex-col items-center justify-center pointer-events-auto">
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.5 }}
+          className="bg-[#1e293b]/90 p-8 rounded-2xl border border-gray-700 shadow-2xl text-center max-w-md backdrop-blur-xl"
+        >
+          <h2 className="text-3xl font-black text-white mb-2">
+            {gameState.gameStatus === 'finished' ? 'GAME OVER' : 'ROUND COMPLETE'}
+          </h2>
+          
+          {/* Scores Summary */}
+          <div className="bg-black/40 p-4 rounded-xl mb-6 w-full">
+             {gameState.players
+               .sort((a, b) => b.totalScore - a.totalScore)
+               .map(p => (
+                 <div key={p.id} className="flex justify-between items-center mb-2 text-sm border-b border-white/5 pb-1 last:border-0">
+                   <span className="text-white font-bold">{p.name}</span>
+                   <div className="flex gap-4">
+                     <span className="text-gray-400 text-xs">Round: {p.roundScore > 0 ? `+${p.roundScore}` : p.roundScore}</span>
+                     <span className="font-mono font-bold text-yellow-400">{p.totalScore}</span>
+                   </div>
+                 </div>
+               ))}
+          </div>
+
+          {/* Actions */}
+          {gameState.gameStatus === 'finished' ? (
+             <button onClick={() => window.location.reload()} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">
+               EXIT TO LOBBY
+             </button>
+          ) : gameState.endGameVoteTimer ? (
+            <div className="space-y-2">
+              <p className="text-yellow-200 font-bold text-sm">Vote to End Game? ({voteTimer}s)</p>
+              <div className="flex gap-2">
+                <button onClick={() => onVote(true)} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-lg text-sm">END</button>
+                <button onClick={() => onVote(false)} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg text-sm">CONTINUE</button>
+              </div>
+            </div>
+          ) : (
+            <button onClick={onNextRound} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/20 animate-pulse">
+              START NEXT ROUND
+            </button>
+          )}
+        </motion.div>
+      </div>
+
+      {/* Players Table Layout */}
+      <div className="absolute inset-0 pointer-events-none">
+        {gameState.players.map((player, index) => {
+          const pos = getPosition(index);
+          const isWinner = gameState.knockedPlayerId === player.id;
+          
+          // Position styles
+          let style: any = {};
+          if (pos === 'bottom') style = { bottom: '20px', left: '50%', transform: 'translateX(-50%)' };
+          if (pos === 'top') style = { top: '20px', left: '50%', transform: 'translateX(-50%) rotate(180deg)' };
+          if (pos === 'left') style = { left: '20px', top: '50%', transform: 'translateY(-50%) rotate(90deg)' };
+          if (pos === 'right') style = { right: '20px', top: '50%', transform: 'translateY(-50%) rotate(-90deg)' };
+
+          return (
+            <motion.div
+              key={player.id}
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.2 }}
+              className="absolute flex flex-col items-center gap-2"
+              style={style}
+            >
+              {/* Player Info */}
+              <div className={`
+                bg-black/60 backdrop-blur px-4 py-2 rounded-full border flex items-center gap-2
+                ${isWinner ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'border-white/10'}
+                ${pos === 'top' || pos === 'left' || pos === 'right' ? 'rotate-180' : ''} 
+              `}>
+                {isWinner && <span className="text-xl">👑</span>}
+                <span className="font-bold text-white">{player.name}</span>
+                <span className={`font-mono font-bold ${player.roundScore > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {player.roundScore > 0 ? `+${player.roundScore}` : '0'}
+                </span>
+              </div>
+
+              {/* Cards Reveal */}
+              <div className="flex -space-x-6">
+                {player.hand.map((card, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ y: 20, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ delay: 0.5 + (i * 0.05) }}
+                    className="relative"
+                  >
+                    <PlayingCard 
+                      card={card} 
+                      className="w-16 h-24 shadow-lg border border-white/20"
+                    />
+                  </motion.div>
+                ))}
+              </div>
+              
+              {/* Melds (if any separate from hand, though usually hand contains all) */}
+              {player.melds.length > 0 && (
+                 <div className="flex gap-2 mt-2 scale-75 opacity-80">
+                   {player.melds.map((meld, mi) => (
+                     <div key={mi} className="bg-white/10 px-2 py-1 rounded flex -space-x-4">
+                       {meld.cards.map((c, ci) => (
+                         <PlayingCard key={ci} card={c} className="w-8 h-12" />
+                       ))}
+                     </div>
+                   ))}
+                 </div>
+              )}
+            </motion.div>
+          );
+        })}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function DiguGamePage() {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [gameState, setGameState] = useState<DiguGameState | null>(null);
@@ -566,63 +719,13 @@ export default function DiguGamePage() {
 
       {/* Game Over / Round End Overlay */}
       {(gameState.gameStatus === 'roundEnd' || gameState.gameStatus === 'finished') && (
-        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1e293b] p-8 rounded-2xl border border-gray-700 max-w-lg w-full text-center shadow-2xl">
-            <h2 className="text-3xl font-black text-white mb-2">
-              {gameState.gameStatus === 'finished' ? 'GAME OVER' : 'ROUND COMPLETE'}
-            </h2>
-            
-            {gameState.gameStatus === 'roundEnd' && (
-              <div className="space-y-6">
-                <div className="bg-black/30 p-4 rounded-xl">
-                  <h3 className="text-gray-400 text-xs font-bold tracking-widest mb-4">SCORES</h3>
-                  {gameState.players.map(p => (
-                    <div key={p.id} className="flex justify-between items-center mb-2 text-sm">
-                      <span className="text-white">{p.name}</span>
-                      <span className="font-mono font-bold text-yellow-400">{p.totalScore} pts</span>
-                    </div>
-                  ))}
-                </div>
-
-                {gameState.endGameVoteTimer ? (
-                  <div className="bg-yellow-500/10 border border-yellow-500/50 p-4 rounded-xl">
-                    <p className="text-yellow-200 font-bold mb-4">Vote to End Game? ({voteTimer}s)</p>
-                    <div className="flex gap-3">
-                      <button onClick={() => voteEndGame(true)} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-lg">END GAME</button>
-                      <button onClick={() => voteEndGame(false)} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg">CONTINUE</button>
-                    </div>
-                  </div>
-                ) : (
-                  <button onClick={startNewRound} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl">
-                    START NEXT ROUND
-                  </button>
-                )}
-              </div>
-            )}
-
-            {gameState.gameStatus === 'finished' && (
-               <div className="space-y-4">
-                 <div className="text-6xl mb-4">🏆</div>
-                 <div className="space-y-2">
-                    {gameState.players
-                      .sort((a, b) => b.totalScore - a.totalScore)
-                      .map((player, idx) => (
-                        <div key={player.id} className={`p-4 rounded-xl flex items-center justify-between ${idx === 0 ? 'bg-yellow-500/20 border border-yellow-500' : 'bg-white/5'}`}>
-                          <div className="flex items-center gap-3">
-                            <span className="font-black text-xl w-8">{idx + 1}</span>
-                            <span className="font-bold text-white">{player.name}</span>
-                          </div>
-                          <span className="font-mono font-bold text-xl">{player.totalScore}</span>
-                        </div>
-                      ))}
-                 </div>
-                 <button onClick={() => window.location.reload()} className="w-full mt-6 bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl">
-                   EXIT TO LOBBY
-                 </button>
-               </div>
-            )}
-          </div>
-        </div>
+        <RoundEndView 
+          gameState={gameState}
+          myPlayerId={socket?.id}
+          onNextRound={startNewRound}
+          onVote={voteEndGame}
+          voteTimer={voteTimer}
+        />
       )}
     </div>
   );
