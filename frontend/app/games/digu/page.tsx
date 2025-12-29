@@ -3,8 +3,9 @@
 import { useEffect, useState, useRef } from 'react';
 import io, { Socket } from 'socket.io-client';
 import Link from 'next/link';
+import { Reorder, motion, AnimatePresence } from 'framer-motion';
 
-// Types
+// --- TYPES ---
 interface Card {
   suit: 'S' | 'H' | 'D' | 'C';
   rank: string;
@@ -44,12 +45,56 @@ interface DiguGameState {
   targetScore: number;
 }
 
-const CARD_SUITS = {
-  S: { symbol: '♠', color: 'text-gray-800' },
-  H: { symbol: '♥', color: 'text-red-600' },
-  D: { symbol: '♦', color: 'text-red-600' },
-  C: { symbol: '♣', color: 'text-gray-800' },
-};
+// --- HELPERS ---
+const getCardId = (card: Card) => `${card.rank}-${card.suit}`;
+
+function PlayingCard({ 
+  card, 
+  onClick, 
+  style, 
+  className, 
+  isSelected,
+  isDraggable = false
+}: { 
+  card: Card, 
+  onClick?: () => void, 
+  style?: React.CSSProperties, 
+  className?: string, 
+  isSelected?: boolean,
+  isDraggable?: boolean
+}) {
+  const getCardCode = (c: Card) => {
+    let r = c.rank;
+    if (r === '10') r = '0';
+    return `${r}${c.suit}`;
+  };
+
+  const imageUrl = `https://deckofcardsapi.com/static/img/${getCardCode(card)}.png`;
+
+  return (
+    <div 
+      onClick={onClick}
+      className={`
+        relative rounded-lg shadow-xl bg-white
+        transform transition-all duration-200 select-none
+        ${className}
+        ${isSelected ? 'ring-4 ring-yellow-400 -translate-y-6 z-50' : ''}
+        ${isDraggable ? 'cursor-grab active:cursor-grabbing' : ''}
+      `}
+      style={{
+        ...style,
+        backgroundImage: `url(${imageUrl})`,
+        backgroundSize: '100% 100%',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Overlay for selection visibility */}
+      {isSelected && (
+        <div className="absolute inset-0 bg-yellow-400/20 rounded-lg pointer-events-none" />
+      )}
+    </div>
+  );
+}
 
 export default function DiguGamePage() {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -58,12 +103,15 @@ export default function DiguGamePage() {
   const [roomId, setRoomId] = useState('');
   const [joined, setJoined] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
+  
+  // Local UI State
+  const [localHand, setLocalHand] = useState<Card[]>([]);
   const [selectedCards, setSelectedCards] = useState<Card[]>([]);
   const [currentMelds, setCurrentMelds] = useState<Meld[]>([]);
   const [showMeldBuilder, setShowMeldBuilder] = useState(false);
   const [voteTimer, setVoteTimer] = useState<number | null>(null);
 
-  // Initialize socket
+  // --- SOCKET SETUP ---
   useEffect(() => {
     const newSocket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:8080', {
       path: '/socket.io',
@@ -84,64 +132,28 @@ export default function DiguGamePage() {
       setIsConnected(false);
     });
 
-    newSocket.on('roomCreated', (data: any) => {
-      console.log('Room created:', data);
-      // Handle both direct data and wrapped data format
+    const handleGameUpdate = (data: any) => {
       const roomData = data.data || data;
       setGameState(roomData);
-      setRoomId(roomData.roomId);
+      if (roomData.roomId) setRoomId(roomData.roomId);
+    };
+
+    newSocket.on('roomCreated', (data) => {
+      handleGameUpdate(data);
       setJoined(true);
     });
-
-    newSocket.on('joined', (data: any) => {
-      console.log('Joined room:', data);
-      // Handle both direct data and wrapped data format
-      const roomData = data.data || data;
-      setGameState(roomData);
-      setRoomId(roomData.roomId); // Ensure roomId is set when joining
+    newSocket.on('joined', (data) => {
+      handleGameUpdate(data);
       setJoined(true);
     });
-
-    newSocket.on('playerJoined', (data: any) => {
-      console.log('Player joined:', data);
-      const roomData = data.data || data;
-      setGameState(roomData);
-    });
-
-    newSocket.on('gameStarted', (data: any) => {
-      console.log('Game started:', data);
-      const roomData = data.data || data;
-      setGameState(roomData);
-    });
-
-    newSocket.on('gameStateUpdate', (data: any) => {
-      console.log('Game state update:', data);
-      const roomData = data.data || data;
-      setGameState(roomData);
-    });
-
-    newSocket.on('roundEnded', (data: any) => {
-      console.log('Round ended:', data);
-      const roomData = data.data || data;
-      setGameState(roomData);
-    });
-
-    newSocket.on('playerDropped', (data: any) => {
-      console.log('Player dropped:', data);
-      const roomData = data.data || data;
-      setGameState(roomData);
-    });
-
-    newSocket.on('voteUpdate', (data: any) => {
-      console.log('Vote update:', data);
-      const roomData = data.data || data;
-      setGameState(roomData);
-    });
-
-    newSocket.on('newRoundStarted', (data: any) => {
-      console.log('New round started:', data);
-      const roomData = data.data || data;
-      setGameState(roomData);
+    newSocket.on('playerJoined', handleGameUpdate);
+    newSocket.on('gameStarted', handleGameUpdate);
+    newSocket.on('gameStateUpdate', handleGameUpdate);
+    newSocket.on('roundEnded', handleGameUpdate);
+    newSocket.on('playerDropped', handleGameUpdate);
+    newSocket.on('voteUpdate', handleGameUpdate);
+    newSocket.on('newRoundStarted', (data) => {
+      handleGameUpdate(data);
       setCurrentMelds([]);
       setSelectedCards([]);
     });
@@ -156,37 +168,34 @@ export default function DiguGamePage() {
     };
   }, []);
 
-  // Vote timer countdown
+  // --- SYNC LOCAL HAND ---
+  const myPlayer = gameState?.players.find(p => p.id === socket?.id);
+  
   useEffect(() => {
-    if (gameState?.endGameVoteTimer) {
-      const interval = setInterval(() => {
-        const remaining = Math.max(0, gameState.endGameVoteTimer! - Date.now());
-        setVoteTimer(Math.ceil(remaining / 1000));
-        if (remaining <= 0) {
-          clearInterval(interval);
-        }
-      }, 100);
-      return () => clearInterval(interval);
-    } else {
-      setVoteTimer(null);
+    if (myPlayer?.hand) {
+      // Only update local hand if the cards have actually changed (added/removed)
+      // This prevents overwriting the user's custom sort order
+      const serverIds = myPlayer.hand.map(getCardId).sort().join(',');
+      const localIds = localHand.map(getCardId).sort().join(',');
+      
+      if (serverIds !== localIds) {
+        // If cards changed, try to preserve order of existing cards
+        const newHand = [...myPlayer.hand];
+        // Simple strategy: just set it for now to ensure sync, 
+        // improving this would require complex diffing to keep order
+        setLocalHand(newHand);
+      }
     }
-  }, [gameState?.endGameVoteTimer]);
+  }, [myPlayer?.hand, gameState?.currentRound]); // Sync on hand change or new round
 
+  // --- GAME ACTIONS ---
   const createRoom = () => {
-    if (!socket || !playerName.trim()) return;
-    if (!socket.connected) {
-      alert('Not connected to server. Please wait.');
-      return;
-    }
+    if (!socket?.connected || !playerName.trim()) return;
     socket.emit('createRoom', { name: playerName, gameType: 'digu' });
   };
 
   const joinRoom = () => {
-    if (!socket || !playerName.trim() || !roomId.trim()) return;
-    if (!socket.connected) {
-      alert('Not connected to server. Please wait.');
-      return;
-    }
+    if (!socket?.connected || !playerName.trim() || !roomId.trim()) return;
     socket.emit('joinRoom', { roomId: roomId.toUpperCase(), name: playerName });
   };
 
@@ -203,6 +212,7 @@ export default function DiguGamePage() {
   const discardCard = (card: Card) => {
     if (!socket || !gameState) return;
     socket.emit('diguDiscardCard', { roomId: gameState.roomId, card });
+    setSelectedCards([]); // Clear selection after discard
   };
 
   const toggleCardSelection = (card: Card) => {
@@ -256,381 +266,364 @@ export default function DiguGamePage() {
     socket.emit('diguStartNewRound', { roomId: gameState.roomId });
   };
 
-  const renderCard = (card: Card, onClick?: () => void, isSelected?: boolean) => {
-    const suit = CARD_SUITS[card.suit];
-    return (
-      <div
-        className={`relative w-16 h-24 bg-white border-2 rounded-lg shadow-md cursor-pointer transition-all ${
-          isSelected ? 'border-blue-500 -translate-y-2' : 'border-gray-300 hover:border-gray-400'
-        } ${onClick ? 'hover:shadow-lg' : ''}`}
-        onClick={onClick}
-      >
-        <div className={`absolute top-1 left-1 text-sm font-bold ${suit.color}`}>
-          {card.rank}
-        </div>
-        <div className={`absolute top-6 left-1/2 transform -translate-x-1/2 text-3xl ${suit.color}`}>
-          {suit.symbol}
-        </div>
-        <div className={`absolute bottom-1 right-1 text-sm font-bold ${suit.color} rotate-180`}>
-          {card.rank}
-        </div>
-      </div>
-    );
-  };
-
-  const myPlayer = gameState?.players.find(p => p.id === socket?.id);
+  // --- RENDER HELPERS ---
   const isMyTurn = gameState && gameState.players[gameState.currentPlayerIndex]?.id === socket?.id;
+  const canDraw = isMyTurn && myPlayer?.hand.length === 10;
+  const canDiscard = isMyTurn && myPlayer?.hand.length === 11;
 
+  // --- RENDER: LOBBY / ENTRY ---
   if (!joined) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 flex items-center justify-center p-4">
-        <div className="bg-white/10 backdrop-blur-md p-8 rounded-2xl shadow-2xl max-w-md w-full">
-          <h1 className="text-4xl font-bold text-white mb-6 text-center">🃏 Digu (Gin Rummy)</h1>
+      <div className="min-h-screen bg-[#020617] text-white font-sans flex flex-col items-center justify-center p-4">
+        <div className="bg-[#0f172a] p-8 rounded-3xl border border-gray-800 w-full max-w-md shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-blue-500"></div>
+          <div className="text-center mb-8">
+            <h1 className="text-5xl font-black tracking-tighter mb-2 bg-clip-text text-transparent bg-gradient-to-b from-white to-gray-400">DIGU</h1>
+            <p className="text-gray-500 text-xs font-bold tracking-[0.2em]">GIN RUMMY</p>
+          </div>
           <div className="space-y-4">
             <input
               type="text"
-              placeholder="Enter your name"
+              placeholder="Enter Your Name"
+              className="w-full bg-[#1e293b] border border-gray-700 p-4 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-center font-medium"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
             />
-            <button
+            <button 
               onClick={createRoom}
-              disabled={!isConnected || !playerName.trim()}
-              className="w-full px-6 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white font-semibold rounded-lg transition-colors"
+              disabled={!isConnected || !playerName}
+              className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-900/20"
             >
-              Create Room
+              CREATE ROOM
             </button>
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <input
                 type="text"
-                placeholder="Room Code"
+                placeholder="CODE"
+                maxLength={6}
+                className="flex-1 bg-[#1e293b] border border-gray-700 p-4 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors text-center font-mono uppercase tracking-widest"
                 value={roomId}
                 onChange={(e) => setRoomId(e.target.value.toUpperCase())}
-                className="flex-1 px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30 focus:outline-none focus:ring-2 focus:ring-white/50"
               />
-              <button
+              <button 
                 onClick={joinRoom}
-                disabled={!isConnected || !playerName.trim() || !roomId.trim()}
-                className="px-6 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white font-semibold rounded-lg transition-colors"
+                disabled={!isConnected || !playerName || roomId.length < 4}
+                className="bg-[#1e293b] hover:bg-[#283548] text-white font-bold px-6 rounded-xl border border-gray-700 transition-all disabled:opacity-50"
               >
-                Join
+                JOIN
               </button>
             </div>
-            <Link href="/" className="block text-center text-white/80 hover:text-white underline mt-4">
-              ← Back to Home
-            </Link>
+            <Link href="/" className="block text-center text-gray-500 text-sm hover:text-white mt-4">← Back to Home</Link>
           </div>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900 p-4">
-      {/* Header */}
-      <div className="max-w-7xl mx-auto mb-4">
-        <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-white">🃏 Digu (Gin Rummy)</h1>
-            <p className="text-white/80">Room: {gameState?.roomId} | Round: {gameState?.currentRound}</p>
+  if (!gameState) return <div className="min-h-screen bg-[#020617] flex items-center justify-center text-white">Loading...</div>;
+
+  // --- RENDER: WAITING ROOM ---
+  if (gameState.gameStatus === 'waiting') {
+    return (
+      <div className="min-h-screen bg-[#020617] text-white flex flex-col items-center justify-center p-4">
+        <div className="bg-[#0f172a] p-12 rounded-[2rem] border border-gray-800 w-full max-w-md text-center shadow-2xl">
+          <p className="text-gray-500 text-xs font-bold tracking-widest mb-2">ROOM CODE</p>
+          <h2 className="text-5xl font-mono font-bold tracking-wider mb-8">{gameState.roomId}</h2>
+          
+          <div className="space-y-3 mb-8">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-gray-400 text-sm font-bold">PLAYERS ({gameState.players.length})</span>
+            </div>
+            {gameState.players.map(p => (
+              <div key={p.id} className="bg-[#1e293b] p-3 rounded-lg flex items-center gap-3 border border-gray-700">
+                <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center text-xs font-bold">
+                  {p.name.substring(0, 2).toUpperCase()}
+                </div>
+                <span className="font-medium">{p.name}</span>
+              </div>
+            ))}
           </div>
-          <Link href="/" className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg">
-            Leave
-          </Link>
+
+          <button 
+            onClick={startGame}
+            className="w-full bg-green-500 hover:bg-green-400 text-black font-bold py-4 rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            START GAME
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDER: MAIN GAME ---
+  return (
+    <div className="min-h-screen bg-[#0f172a] text-white overflow-hidden relative flex flex-col">
+      {/* Background Pattern */}
+      <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10 pointer-events-none"></div>
+
+      {/* Top Bar: Opponents */}
+      <div className="bg-black/40 backdrop-blur-md border-b border-white/10 p-4 flex justify-between items-center z-20">
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-xs font-bold text-gray-400 hover:text-white">← EXIT</Link>
+          <div className="bg-[#1e293b] px-3 py-1 rounded border border-gray-700">
+            <span className="text-xs text-gray-400">ROOM:</span> <span className="font-mono font-bold">{gameState.roomId}</span>
+          </div>
+        </div>
+        
+        <div className="flex gap-4 overflow-x-auto">
+          {gameState.players.filter(p => p.id !== socket?.id).map(p => {
+            const isCurrent = gameState.players[gameState.currentPlayerIndex].id === p.id;
+            return (
+              <div key={p.id} className={`flex items-center gap-2 px-3 py-1.5 rounded-full border ${isCurrent ? 'border-yellow-500 bg-yellow-500/10' : 'border-white/10 bg-white/5'}`}>
+                <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-[10px]">{p.name.substring(0, 2)}</div>
+                <div className="flex flex-col">
+                  <span className={`text-xs font-bold ${isCurrent ? 'text-yellow-400' : 'text-white'}`}>{p.name}</span>
+                  <span className="text-[9px] text-gray-400">{p.hand.length} Cards</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* Players Panel */}
-        <div className="lg:col-span-1">
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg">
-            <h2 className="text-xl font-bold text-white mb-4">Players ({gameState?.players.length}/4)</h2>
-            <div className="space-y-2">
-              {gameState?.players.map((player, idx) => (
-                <div
-                  key={player.id}
-                  className={`p-3 rounded-lg ${
-                    idx === gameState.currentPlayerIndex
-                      ? 'bg-yellow-500/30 border-2 border-yellow-400'
-                      : 'bg-white/5'
-                  } ${player.hasDropped ? 'opacity-50' : ''}`}
-                >
-                  <div className="flex justify-between items-center">
-                    <span className="text-white font-semibold">
-                      {player.name} {player.isBot && '🤖'}
-                      {player.id === socket?.id && ' (You)'}
-                    </span>
-                    <span className="text-white/80 text-sm">{player.hand.length} cards</span>
-                  </div>
-                  <div className="text-sm text-white/70 mt-1">
-                    Round: {player.roundScore} | Total: {player.totalScore}
-                  </div>
-                  {player.hasKnocked && <span className="text-yellow-300 text-xs">🔔 Knocked!</span>}
-                  {player.hasDropped && <span className="text-red-300 text-xs">❌ Dropped</span>}
-                </div>
-              ))}
+      {/* Center Table: Deck & Discard */}
+      <div className="flex-1 flex items-center justify-center relative perspective-[1000px]">
+        <div className="relative flex gap-12 transform rotate-x-10">
+          {/* Deck */}
+          <div className="relative group">
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-xs font-bold text-gray-400 tracking-widest">DECK</div>
+            <div 
+              onClick={() => canDraw && drawCard(false)}
+              className={`
+                w-32 h-48 bg-blue-900 rounded-xl border-2 border-white/20 shadow-2xl relative
+                ${canDraw ? 'cursor-pointer hover:-translate-y-2 hover:shadow-blue-500/20 ring-2 ring-green-400' : 'opacity-80'}
+                transition-all duration-300
+              `}
+            >
+              <div className="absolute inset-2 border border-white/10 rounded-lg bg-white/5 opacity-30"></div>
+              <div className="absolute inset-0 flex items-center justify-center text-4xl">🂠</div>
             </div>
-
-            {gameState?.gameStatus === 'waiting' && (
-              <button
-                onClick={startGame}
-                className="w-full mt-4 px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg"
-              >
-                Start Game
-              </button>
-            )}
-
-            {gameState?.gameStatus === 'playing' && (
-              <button
-                onClick={dropOut}
-                className="w-full mt-4 px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg"
-              >
-                Drop Out
-              </button>
-            )}
           </div>
 
-          {/* Game Log */}
-          <div className="mt-4 bg-white/10 backdrop-blur-md p-4 rounded-lg">
-            <h2 className="text-xl font-bold text-white mb-2">Game Log</h2>
-            <div className="max-h-48 overflow-y-auto space-y-1">
-              {gameState?.gameLog.map((log, idx) => (
-                <div key={idx} className="text-sm text-white/80">
-                  {log}
+          {/* Discard Pile */}
+          <div className="relative group">
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 text-xs font-bold text-gray-400 tracking-widest">DISCARD</div>
+            <div 
+              onClick={() => canDraw && drawCard(true)}
+              className={`
+                w-32 h-48 rounded-xl border-2 border-white/10 shadow-2xl relative
+                ${canDraw ? 'cursor-pointer hover:-translate-y-2 hover:shadow-yellow-500/20 ring-2 ring-green-400' : ''}
+                ${!canDraw && canDiscard ? 'ring-2 ring-yellow-400 ring-offset-2 ring-offset-[#0f172a]' : ''}
+                transition-all duration-300
+              `}
+            >
+              {gameState.discardPile.length > 0 ? (
+                <PlayingCard 
+                  card={gameState.discardPile[gameState.discardPile.length - 1]} 
+                  className="w-full h-full"
+                />
+              ) : (
+                <div className="w-full h-full bg-white/5 rounded-xl flex items-center justify-center text-white/20 border-2 border-dashed border-white/20">
+                  EMPTY
                 </div>
-              ))}
+              )}
             </div>
+            
+            {/* Discard Action Hint */}
+            {canDiscard && (
+              <div className="absolute -bottom-12 left-1/2 -translate-x-1/2 whitespace-nowrap">
+                <span className="bg-yellow-500 text-black text-xs font-bold px-3 py-1 rounded-full animate-bounce">
+                  DISCARD HERE
+                </span>
+              </div>
+            )}
           </div>
         </div>
+      </div>
 
-        {/* Game Area */}
-        <div className="lg:col-span-3">
-          {/* Discard Pile and Deck */}
-          <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg mb-4">
-            <div className="flex justify-center gap-8">
-              <div>
-                <p className="text-white text-center mb-2">Deck ({gameState?.deck.length})</p>
-                <div
-                  className="w-16 h-24 bg-blue-800 border-2 border-white rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition-shadow"
-                  onClick={() => isMyTurn && myPlayer?.hand.length === 10 && drawCard(false)}
+      {/* Bottom: Player Hand & Controls */}
+      <div className="bg-gradient-to-t from-black/90 to-transparent pt-12 pb-6 px-4 z-30">
+        <div className="max-w-5xl mx-auto">
+          
+          {/* Action Bar */}
+          <div className="flex justify-between items-end mb-6">
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowMeldBuilder(!showMeldBuilder)}
+                className={`px-4 py-2 rounded-lg font-bold text-sm transition-all ${showMeldBuilder ? 'bg-purple-500 text-white' : 'bg-white/10 text-gray-300 hover:bg-white/20'}`}
+              >
+                🛠️ MELD BUILDER
+              </button>
+              {myPlayer?.hand.length === 10 && isMyTurn && (
+                <button 
+                  onClick={knock}
+                  className="px-4 py-2 bg-yellow-500 hover:bg-yellow-400 text-black rounded-lg font-bold text-sm transition-all shadow-lg shadow-yellow-500/20"
                 >
-                  <div className="flex items-center justify-center h-full text-white text-4xl">🂠</div>
+                  🔔 KNOCK
+                </button>
+              )}
+            </div>
+
+            {/* Turn Indicator */}
+            <div className="text-center">
+              {isMyTurn ? (
+                <div className="bg-green-500 text-black font-bold px-6 py-2 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.4)] animate-pulse">
+                  YOUR TURN
                 </div>
-              </div>
-              <div>
-                <p className="text-white text-center mb-2">Discard Pile</p>
-                {gameState?.discardPile && gameState.discardPile.length > 0 ? (
-                  <div onClick={() => isMyTurn && myPlayer?.hand.length === 10 && drawCard(true)}>
-                    {renderCard(gameState.discardPile[gameState.discardPile.length - 1], undefined, false)}
-                  </div>
-                ) : (
-                  <div className="w-16 h-24 bg-gray-700 border-2 border-dashed border-white/30 rounded-lg flex items-center justify-center text-white/50">
-                    Empty
-                  </div>
-                )}
-              </div>
+              ) : (
+                <div className="text-gray-400 font-bold text-sm bg-black/40 px-4 py-2 rounded-full">
+                  WAITING FOR {gameState.players[gameState.currentPlayerIndex].name.toUpperCase()}...
+                </div>
+              )}
+            </div>
+
+            {/* Discard Button (Visible when card selected) */}
+            <div className="h-10">
+              {canDiscard && selectedCards.length === 1 && (
+                <button 
+                  onClick={() => discardCard(selectedCards[0])}
+                  className="px-6 py-2 bg-red-500 hover:bg-red-400 text-white rounded-lg font-bold text-sm transition-all shadow-lg animate-bounce"
+                >
+                  🗑️ DISCARD SELECTED
+                </button>
+              )}
             </div>
           </div>
 
-          {/* My Hand */}
-          {myPlayer && (
-            <div className="bg-white/10 backdrop-blur-md p-4 rounded-lg">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-white">Your Hand ({myPlayer.hand.length} cards)</h2>
-                <div className="flex gap-2">
-                  {isMyTurn && myPlayer.hand.length === 11 && (
-                    <span className="px-3 py-1 bg-yellow-500 text-white rounded-lg">
-                      Discard a card!
-                    </span>
-                  )}
-                  {isMyTurn && myPlayer.hand.length === 10 && (
-                    <span className="px-3 py-1 bg-green-500 text-white rounded-lg">
-                      Your Turn - Draw a card
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                {myPlayer.hand.map((card, idx) => (
-                  <div key={idx}>
-                    {renderCard(
-                      card,
-                      () => {
-                        if (showMeldBuilder) {
-                          toggleCardSelection(card);
-                        } else if (isMyTurn && myPlayer.hand.length === 11) {
-                          discardCard(card);
-                        }
-                      },
-                      selectedCards.some(c => c.suit === card.suit && c.rank === card.rank)
-                    )}
+          {/* Meld Builder Panel */}
+          <AnimatePresence>
+            {showMeldBuilder && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="bg-[#1e293b] border border-gray-700 rounded-xl p-4 mb-4 overflow-hidden"
+              >
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-bold text-white">Create Melds</h3>
+                  <div className="flex gap-2">
+                    <button onClick={() => createMeld('set')} disabled={selectedCards.length < 3} className="px-3 py-1 bg-blue-600 rounded text-xs font-bold disabled:opacity-50">SET (3+ SAME RANK)</button>
+                    <button onClick={() => createMeld('run')} disabled={selectedCards.length < 3} className="px-3 py-1 bg-green-600 rounded text-xs font-bold disabled:opacity-50">RUN (3+ SEQUENCE)</button>
+                    <button onClick={declareMelds} disabled={currentMelds.length === 0} className="px-3 py-1 bg-yellow-500 text-black rounded text-xs font-bold disabled:opacity-50">DECLARE</button>
                   </div>
-                ))}
-              </div>
+                </div>
+                
+                {/* Staged Melds */}
+                <div className="flex gap-4 overflow-x-auto pb-2">
+                  {currentMelds.length === 0 && <div className="text-gray-500 text-sm italic">No melds created yet. Select cards to build.</div>}
+                  {currentMelds.map((meld, i) => (
+                    <div key={i} className="bg-black/40 p-2 rounded-lg flex items-center gap-2 min-w-max">
+                      <span className="text-xs font-bold text-gray-400 uppercase">{meld.type}</span>
+                      <div className="flex -space-x-4">
+                        {meld.cards.map((c, ci) => (
+                          <PlayingCard key={ci} card={c} className="w-10 h-14 shadow-sm" />
+                        ))}
+                      </div>
+                      <button onClick={() => removeMeld(i)} className="text-red-400 hover:text-red-300 text-xs ml-2">✕</button>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-              {/* Action Buttons */}
-              <div className="flex gap-2 flex-wrap">
-                <button
-                  onClick={() => setShowMeldBuilder(!showMeldBuilder)}
-                  className="px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg"
-                >
-                  {showMeldBuilder ? 'Hide' : 'Build'} Melds
-                </button>
-                {myPlayer.hand.length === 10 && (
-                  <button
-                    onClick={knock}
-                    className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg"
+          {/* Draggable Hand */}
+          <div className="relative min-h-[160px] flex justify-center">
+            <Reorder.Group 
+              axis="x" 
+              values={localHand} 
+              onReorder={setLocalHand}
+              className="flex items-end justify-center gap-[-40px]"
+            >
+              {localHand.map((card, index) => {
+                const isSelected = selectedCards.some(c => c.suit === card.suit && c.rank === card.rank);
+                return (
+                  <Reorder.Item 
+                    key={getCardId(card)} 
+                    value={card}
+                    className="relative -ml-12 first:ml-0 transition-all hover:z-50 hover:-translate-y-4"
+                    style={{ zIndex: index }}
                   >
-                    🔔 Knock
+                    <PlayingCard 
+                      card={card} 
+                      isSelected={isSelected}
+                      isDraggable={true}
+                      className="w-28 h-40 md:w-32 md:h-48 shadow-2xl"
+                      onClick={() => toggleCardSelection(card)}
+                    />
+                  </Reorder.Item>
+                );
+              })}
+            </Reorder.Group>
+          </div>
+          
+          <div className="text-center mt-2 text-xs text-gray-500 font-bold tracking-widest">
+            DRAG TO REORDER • CLICK TO SELECT
+          </div>
+
+        </div>
+      </div>
+
+      {/* Game Over / Round End Overlay */}
+      {(gameState.gameStatus === 'roundEnd' || gameState.gameStatus === 'finished') && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#1e293b] p-8 rounded-2xl border border-gray-700 max-w-lg w-full text-center shadow-2xl">
+            <h2 className="text-3xl font-black text-white mb-2">
+              {gameState.gameStatus === 'finished' ? 'GAME OVER' : 'ROUND COMPLETE'}
+            </h2>
+            
+            {gameState.gameStatus === 'roundEnd' && (
+              <div className="space-y-6">
+                <div className="bg-black/30 p-4 rounded-xl">
+                  <h3 className="text-gray-400 text-xs font-bold tracking-widest mb-4">SCORES</h3>
+                  {gameState.players.map(p => (
+                    <div key={p.id} className="flex justify-between items-center mb-2 text-sm">
+                      <span className="text-white">{p.name}</span>
+                      <span className="font-mono font-bold text-yellow-400">{p.totalScore} pts</span>
+                    </div>
+                  ))}
+                </div>
+
+                {gameState.endGameVoteTimer ? (
+                  <div className="bg-yellow-500/10 border border-yellow-500/50 p-4 rounded-xl">
+                    <p className="text-yellow-200 font-bold mb-4">Vote to End Game? ({voteTimer}s)</p>
+                    <div className="flex gap-3">
+                      <button onClick={() => voteEndGame(true)} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-lg">END GAME</button>
+                      <button onClick={() => voteEndGame(false)} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-lg">CONTINUE</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={startNewRound} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl">
+                    START NEXT ROUND
                   </button>
                 )}
               </div>
+            )}
 
-              {/* Meld Builder */}
-              {showMeldBuilder && (
-                <div className="mt-4 p-4 bg-black/30 rounded-lg">
-                  <h3 className="text-white font-bold mb-2">Meld Builder</h3>
-                  <p className="text-white/70 text-sm mb-4">
-                    Select 3+ cards and create a Set (same rank) or Run (consecutive, same suit)
-                  </p>
-                  <div className="flex gap-2 mb-4">
-                    <button
-                      onClick={() => createMeld('set')}
-                      disabled={selectedCards.length < 3}
-                      className="px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-500 text-white rounded-lg"
-                    >
-                      Create Set
-                    </button>
-                    <button
-                      onClick={() => createMeld('run')}
-                      disabled={selectedCards.length < 3}
-                      className="px-4 py-2 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white rounded-lg"
-                    >
-                      Create Run
-                    </button>
-                    <button
-                      onClick={declareMelds}
-                      disabled={currentMelds.length === 0}
-                      className="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-500 text-white rounded-lg"
-                    >
-                      Declare Melds
-                    </button>
-                  </div>
-
-                  {/* Current Melds */}
-                  {currentMelds.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-white font-semibold">Your Melds:</h4>
-                      {currentMelds.map((meld, idx) => (
-                        <div key={idx} className="flex gap-2 items-center bg-white/10 p-2 rounded">
-                          <span className="text-white text-sm">{meld.type}:</span>
-                          <div className="flex gap-1">
-                            {meld.cards.map((card, cidx) => (
-                              <div key={cidx} className="scale-75">
-                                {renderCard(card)}
-                              </div>
-                            ))}
+            {gameState.gameStatus === 'finished' && (
+               <div className="space-y-4">
+                 <div className="text-6xl mb-4">🏆</div>
+                 <div className="space-y-2">
+                    {gameState.players
+                      .sort((a, b) => b.totalScore - a.totalScore)
+                      .map((player, idx) => (
+                        <div key={player.id} className={`p-4 rounded-xl flex items-center justify-between ${idx === 0 ? 'bg-yellow-500/20 border border-yellow-500' : 'bg-white/5'}`}>
+                          <div className="flex items-center gap-3">
+                            <span className="font-black text-xl w-8">{idx + 1}</span>
+                            <span className="font-bold text-white">{player.name}</span>
                           </div>
-                          <button
-                            onClick={() => removeMeld(idx)}
-                            className="ml-auto px-2 py-1 bg-red-500 hover:bg-red-600 text-white rounded text-sm"
-                          >
-                            Remove
-                          </button>
+                          <span className="font-mono font-bold text-xl">{player.totalScore}</span>
                         </div>
                       ))}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Declared Melds */}
-              {myPlayer.melds.length > 0 && (
-                <div className="mt-4 p-4 bg-green-900/30 rounded-lg">
-                  <h3 className="text-white font-bold mb-2">Your Declared Melds:</h3>
-                  <div className="space-y-2">
-                    {myPlayer.melds.map((meld, idx) => (
-                      <div key={idx} className="flex gap-2 items-center">
-                        <span className="text-white text-sm">{meld.type}:</span>
-                        <div className="flex gap-1">
-                          {meld.cards.map((card, cidx) => (
-                            <div key={cidx} className="scale-75">
-                              {renderCard(card)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Voting UI */}
-          {gameState?.gameStatus === 'roundEnd' && gameState.endGameVoteTimer && (
-            <div className="mt-4 bg-yellow-500/20 backdrop-blur-md p-6 rounded-lg border-2 border-yellow-400">
-              <h2 className="text-2xl font-bold text-white mb-4 text-center">
-                🗳️ End Game Vote
-              </h2>
-              <p className="text-white text-center mb-4">
-                {voteTimer}s remaining - Do you want to end the game or continue?
-              </p>
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={() => voteEndGame(true)}
-                  disabled={myPlayer?.id ? myPlayer.id in (gameState.endGameVotes || {}) : false}
-                  className="px-6 py-3 bg-red-500 hover:bg-red-600 disabled:bg-gray-500 text-white font-bold rounded-lg"
-                >
-                  End Game
-                </button>
-                <button
-                  onClick={() => voteEndGame(false)}
-                  disabled={myPlayer?.id ? myPlayer.id in (gameState.endGameVotes || {}) : false}
-                  className="px-6 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white font-bold rounded-lg"
-                >
-                  Continue Playing
-                </button>
-              </div>
-              <div className="mt-4 text-white/80 text-center text-sm">
-                Votes: {Object.keys(gameState.endGameVotes || {}).length} /{' '}
-                {gameState.players.filter(p => !p.hasDropped).length}
-              </div>
-            </div>
-          )}
-
-          {/* Round End / New Round */}
-          {gameState?.gameStatus === 'roundEnd' && !gameState.endGameVoteTimer && (
-            <div className="mt-4 bg-white/10 backdrop-blur-md p-6 rounded-lg text-center">
-              <h2 className="text-2xl font-bold text-white mb-4">Round {gameState.currentRound} Complete!</h2>
-              <button
-                onClick={startNewRound}
-                className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg"
-              >
-                Start Next Round
-              </button>
-            </div>
-          )}
-
-          {/* Game Finished */}
-          {gameState?.gameStatus === 'finished' && (
-            <div className="mt-4 bg-gradient-to-r from-yellow-500/30 to-orange-500/30 backdrop-blur-md p-6 rounded-lg text-center border-2 border-yellow-400">
-              <h2 className="text-3xl font-bold text-white mb-4">🏆 Game Finished!</h2>
-              <div className="space-y-2">
-                {gameState.players
-                  .sort((a, b) => b.totalScore - a.totalScore)
-                  .map((player, idx) => (
-                    <div key={player.id} className="text-white text-lg">
-                      {idx + 1}. {player.name} - {player.totalScore} points
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
+                 </div>
+                 <button onClick={() => window.location.reload()} className="w-full mt-6 bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl">
+                   EXIT TO LOBBY
+                 </button>
+               </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
