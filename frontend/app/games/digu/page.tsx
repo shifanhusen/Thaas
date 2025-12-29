@@ -211,11 +211,13 @@ function RoundEndView({
                 ${isWinner ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'border-white/10'}
                 ${pos === 'left' || pos === 'right' ? 'rotate-180' : ''} 
               `}>
-                {isWinner && <span className="text-xl">👑</span>}
-                <span className="font-bold text-white">{player.name}</span>
-                <span className={`font-mono font-bold ${player.roundScore > 0 ? 'text-red-400' : 'text-green-400'}`}>
-                  {player.roundScore > 0 ? `+${player.roundScore}` : '0'}
-                </span>
+                <div className={`${pos === 'left' || pos === 'right' ? 'rotate-180' : ''} flex items-center gap-2`}>
+                  {isWinner && <span className="text-xl">👑</span>}
+                  <span className="font-bold text-white">{player.name}</span>
+                  <span className={`font-mono font-bold ${player.roundScore > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                    {player.roundScore > 0 ? `+${player.roundScore}` : '0'}
+                  </span>
+                </div>
               </div>
 
               {/* Cards Reveal */}
