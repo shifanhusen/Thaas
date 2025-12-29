@@ -203,64 +203,49 @@ export class DiguService {
     const isBigDigu = this.checkBigDigu(knocker);
     const isGin = knockerDeadwood === 0;
 
-    if (isBigDigu) {
-      scores[knocker.id] = 50; // +25 Gin + +25 Big Digu
-      bonuses[knocker.id].push('Big Digu! (+50)');
-      this.addLog(gameState, `🌟 ${knocker.name} has BIG DIGU! (+50 bonus)`);
-    } else if (isGin) {
-      scores[knocker.id] = 25;
-      bonuses[knocker.id].push('Gin! (+25)');
-      this.addLog(gameState, `✨ ${knocker.name} has Gin! (+25 bonus)`);
-    }
+    // Winner gets fixed 100 points
+    scores[knocker.id] = 100;
+    bonuses[knocker.id].push('Winner! (+100)');
+    this.addLog(gameState, `✨ ${knocker.name} wins! (+100 points)`);
 
-    // Calculate other players' deadwood
+    // Calculate other players' scores
     let winnerId = knocker.id;
-    let knockerScore = scores[knocker.id] || 0;
 
     gameState.players.forEach(p => {
       if (p.id !== knocker.id && !p.hasDropped) {
         const playerDeadwood = this.calculateDeadwood(p.hand, p.melds);
+        
+        // Calculate points from valid melds
+        const meldPoints = p.melds.reduce((sum, meld) => {
+          return sum + meld.cards.reduce((cardSum, card) => cardSum + this.cardValues[card.rank], 0);
+        }, 0);
+
         deadwood[p.id] = playerDeadwood;
         melds[p.id] = p.melds;
         bonuses[p.id] = [];
 
-        if (isGin || isBigDigu) {
-          // Knocker gets opponent's deadwood
-          knockerScore += playerDeadwood;
-          // Opponent loses points equal to their deadwood (optional rule, usually they just get 0 points in this round, but let's deduct for clarity if needed)
-          // Standard Gin Rummy: Loser gets 0 points for the round, winner gets points.
-          // If you want to DEDUCT from total score:
-          // p.totalScore -= playerDeadwood; 
-        } else {
-          // Check for undercut
-          if (playerDeadwood <= knockerDeadwood) {
-            scores[p.id] = 25 + (knockerDeadwood - playerDeadwood);
-            bonuses[p.id].push(`Undercut! (+25)`);
-            winnerId = p.id;
-            this.addLog(gameState, `💥 ${p.name} undercut ${knocker.name}!`);
-          } else {
-            knockerScore += (playerDeadwood - knockerDeadwood);
-          }
-        }
+        // Round Score = Meld Points - Deadwood Points
+        const roundScore = meldPoints - playerDeadwood;
+        scores[p.id] = roundScore;
         
-        // Deduct deadwood from total score (House Rule: Deadwood Penalty)
-        // This ensures players are penalized for holding high cards
-        p.totalScore -= playerDeadwood;
+        // Add/Deduct from total score
+        p.totalScore += roundScore;
       }
     });
 
-    scores[knocker.id] = knockerScore;
+    // Update winner's total score
+    const winner = gameState.players.find(p => p.id === knocker.id);
+    if (winner) {
+      winner.roundScore = scores[knocker.id];
+      winner.totalScore += scores[knocker.id];
+    }
 
-    // Update round scores
+    // Update losers' round scores in state
     Object.entries(scores).forEach(([playerId, score]) => {
-      const player = gameState.players.find(p => p.id === playerId);
-      if (player) {
-        player.roundScore = score;
-        player.totalScore += score;
-        
-        // Also deduct knocker's deadwood if not Gin
-        if (playerId === knocker.id && !isGin && !isBigDigu) {
-             player.totalScore -= knockerDeadwood;
+      if (playerId !== knocker.id) {
+        const player = gameState.players.find(p => p.id === playerId);
+        if (player) {
+          player.roundScore = score;
         }
       }
     });

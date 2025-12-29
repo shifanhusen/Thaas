@@ -241,9 +241,11 @@ export class DiguGameService {
 
     room.endGameVotes[playerId] = voteEnd;
 
-    // Check if all voted
-    const activePlayers = room.players.filter(p => !p.hasDropped);
-    if (Object.keys(room.endGameVotes).length === activePlayers.length) {
+    // Check if all human players voted
+    const humanPlayers = room.players.filter(p => !p.hasDropped && !p.isBot);
+    const humanVotes = Object.keys(room.endGameVotes).filter(id => humanPlayers.some(p => p.id === id));
+    
+    if (humanVotes.length === humanPlayers.length) {
       this.processEndGameVote(roomId);
     }
 
@@ -262,9 +264,12 @@ export class DiguGameService {
     }
 
     // Count votes
-    const votes = Object.values(room.endGameVotes);
-    const endVotes = votes.filter(v => v === true).length;
-    const continueVotes = votes.filter(v => v === false).length;
+    // Bots always vote to END (true)
+    const botCount = room.players.filter(p => p.isBot && !p.hasDropped).length;
+    const humanVotes = Object.values(room.endGameVotes);
+    
+    const endVotes = humanVotes.filter(v => v === true).length + botCount;
+    const continueVotes = humanVotes.filter(v => v === false).length;
 
     if (endVotes > continueVotes) {
       room.gameStatus = 'finished';
