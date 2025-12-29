@@ -114,8 +114,15 @@ let DiguService = class DiguService {
         return deadwoodCards.reduce((sum, card) => sum + this.cardValues[card.rank], 0);
     }
     canKnock(player) {
-        const deadwood = this.calculateDeadwood(player.hand, player.melds);
-        return deadwood <= 10;
+        const meldedCards = new Set(player.melds.flatMap(m => m.cards.map(c => `${c.rank}${c.suit}`)));
+        const deadwoodCards = player.hand.filter(c => !meldedCards.has(`${c.rank}${c.suit}`));
+        if (player.hand.length === 10) {
+            return deadwoodCards.length === 0;
+        }
+        if (player.hand.length === 11) {
+            return deadwoodCards.length === 1;
+        }
+        return false;
     }
     checkBigDigu(player) {
         const totalMeldedCards = player.melds.reduce((sum, meld) => sum + meld.cards.length, 0);
@@ -125,9 +132,21 @@ let DiguService = class DiguService {
         const knocker = gameState.players.find(p => p.id === playerId);
         if (!knocker)
             throw new Error('Player not found');
+        if (knocker.hand.length === 11) {
+            const meldedCards = new Set(knocker.melds.flatMap(m => m.cards.map(c => `${c.rank}${c.suit}`)));
+            const deadwoodCards = knocker.hand.filter(c => !meldedCards.has(`${c.rank}${c.suit}`));
+            if (deadwoodCards.length === 1) {
+                const discardCard = deadwoodCards[0];
+                knocker.hand = knocker.hand.filter(c => !(c.suit === discardCard.suit && c.rank === discardCard.rank));
+                gameState.discardPile.push(discardCard);
+                this.addLog(gameState, `🔔 ${knocker.name} discards ${discardCard.rank}${discardCard.suit} and knocks!`);
+            }
+        }
+        else {
+            this.addLog(gameState, `🔔 ${knocker.name} knocks!`);
+        }
         knocker.hasKnocked = true;
         gameState.knockedPlayerId = playerId;
-        this.addLog(gameState, `🔔 ${knocker.name} knocked!`);
         const scores = {};
         const deadwood = {};
         const melds = {};
@@ -138,46 +157,40 @@ let DiguService = class DiguService {
         bonuses[knocker.id] = [];
         const isBigDigu = this.checkBigDigu(knocker);
         const isGin = knockerDeadwood === 0;
-        if (isBigDigu) {
-            scores[knocker.id] = 50;
-            bonuses[knocker.id].push('Big Digu! (+50)');
-            this.addLog(gameState, `🌟 ${knocker.name} has BIG DIGU! (+50 bonus)`);
-        }
-        else if (isGin) {
-            scores[knocker.id] = 25;
-            bonuses[knocker.id].push('Gin! (+25)');
-            this.addLog(gameState, `✨ ${knocker.name} has Gin! (+25 bonus)`);
-        }
+        const winnerMeldPoints = knocker.melds.reduce((sum, meld) => {
+            return sum + meld.cards.reduce((cardSum, card) => cardSum + this.cardValues[card.rank], 0);
+        }, 0);
+        const winnerTotalRoundPoints = winnerMeldPoints + 100;
+        scores[knocker.id] = winnerTotalRoundPoints;
+        bonuses[knocker.id].push(`Melds: ${winnerMeldPoints}`);
+        bonuses[knocker.id].push('Winner Bonus (+100)');
+        this.addLog(gameState, `✨ ${knocker.name} wins! (+${winnerTotalRoundPoints} points)`);
         let winnerId = knocker.id;
-        let knockerScore = scores[knocker.id] || 0;
         gameState.players.forEach(p => {
             if (p.id !== knocker.id && !p.hasDropped) {
                 const playerDeadwood = this.calculateDeadwood(p.hand, p.melds);
+                const meldPoints = p.melds.reduce((sum, meld) => {
+                    return sum + meld.cards.reduce((cardSum, card) => cardSum + this.cardValues[card.rank], 0);
+                }, 0);
                 deadwood[p.id] = playerDeadwood;
                 melds[p.id] = p.melds;
                 bonuses[p.id] = [];
-                if (isGin || isBigDigu) {
-                    knockerScore += playerDeadwood;
-                }
-                else {
-                    if (playerDeadwood <= knockerDeadwood) {
-                        scores[p.id] = 25 + (knockerDeadwood - playerDeadwood);
-                        bonuses[p.id].push(`Undercut! (+25)`);
-                        winnerId = p.id;
-                        this.addLog(gameState, `💥 ${p.name} undercut ${knocker.name}!`);
-                    }
-                    else {
-                        knockerScore += (playerDeadwood - knockerDeadwood);
-                    }
-                }
+                const roundScore = meldPoints - playerDeadwood;
+                scores[p.id] = roundScore;
+                p.totalScore += roundScore;
             }
         });
-        scores[knocker.id] = knockerScore;
+        const winner = gameState.players.find(p => p.id === knocker.id);
+        if (winner) {
+            winner.roundScore = scores[knocker.id];
+            winner.totalScore += scores[knocker.id];
+        }
         Object.entries(scores).forEach(([playerId, score]) => {
-            const player = gameState.players.find(p => p.id === playerId);
-            if (player) {
-                player.roundScore = score;
-                player.totalScore += score;
+            if (playerId !== knocker.id) {
+                const player = gameState.players.find(p => p.id === playerId);
+                if (player) {
+                    player.roundScore = score;
+                }
             }
         });
         return { winnerId, scores, melds, deadwood, bonuses };
@@ -185,13 +198,27 @@ let DiguService = class DiguService {
     botTurn(gameState, botPlayer) {
         const topDiscard = gameState.discardPile[gameState.discardPile.length - 1];
         const wouldFormMeld = this.wouldCardHelpMeld(botPlayer.hand, topDiscard);
-        if (wouldFormMeld && Math.random() > 0.3) {
+        if (wouldFormMeld && Math.random() > 0.3 && gameState.discardPile.length > 0) {
             botPlayer.hand.push(gameState.discardPile.pop());
             this.addLog(gameState, `${botPlayer.name} drew from discard pile`);
         }
         else {
-            botPlayer.hand.push(gameState.deck.pop());
-            this.addLog(gameState, `${botPlayer.name} drew from deck`);
+            if (gameState.deck.length === 0) {
+                if (gameState.discardPile.length > 1) {
+                    const topCard = gameState.discardPile.pop();
+                    gameState.deck = this.shuffle([...gameState.discardPile]);
+                    gameState.discardPile = [topCard];
+                    this.addLog(gameState, `🔄 Deck reshuffled from discard pile`);
+                }
+                else {
+                    this.addLog(gameState, `⚠️ Deck and discard empty, cannot draw.`);
+                    return;
+                }
+            }
+            if (gameState.deck.length > 0) {
+                botPlayer.hand.push(gameState.deck.pop());
+                this.addLog(gameState, `${botPlayer.name} drew from deck`);
+            }
         }
         botPlayer.melds = this.findBestMelds(botPlayer.hand);
         const worstCard = this.findWorstCard(botPlayer.hand, botPlayer.melds);

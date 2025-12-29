@@ -186,7 +186,7 @@ let GameGateway = class GameGateway {
         }
     }
     diguKnock(data, client) {
-        const room = this.diguGameService.knock(data.roomId, client.id);
+        const room = this.diguGameService.knock(data.roomId, client.id, data.melds);
         if (room) {
             this.server.to(data.roomId).emit('roundEnded', room);
         }
@@ -209,6 +209,9 @@ let GameGateway = class GameGateway {
             this.server.to(data.roomId).emit('newRoundStarted', room);
             this.handleBotTurns(data.roomId);
         }
+    }
+    sendEmote(data, client) {
+        this.server.to(data.roomId).emit('emoteReceived', { playerId: client.id, emoji: data.emoji });
     }
 };
 exports.GameGateway = GameGateway;
@@ -325,6 +328,14 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", void 0)
 ], GameGateway.prototype, "diguStartNewRound", null);
+__decorate([
+    (0, websockets_1.SubscribeMessage)('sendEmote'),
+    __param(0, (0, websockets_1.MessageBody)()),
+    __param(1, (0, websockets_1.ConnectedSocket)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, socket_io_1.Socket]),
+    __metadata("design:returntype", void 0)
+], GameGateway.prototype, "sendEmote", null);
 exports.GameGateway = GameGateway = __decorate([
     (0, websockets_1.WebSocketGateway)({
         cors: {

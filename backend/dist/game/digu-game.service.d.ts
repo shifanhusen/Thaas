@@ -14,7 +14,7 @@ export declare class DiguGameService {
     drawCard(roomId: string, playerId: string, fromDiscard: boolean): DiguGameState | null;
     discardCard(roomId: string, playerId: string, card: any): DiguGameState | null;
     declareMelds(roomId: string, playerId: string, melds: any[]): DiguGameState | null;
-    knock(roomId: string, playerId: string): DiguGameState | null;
+    knock(roomId: string, playerId: string, melds?: any[]): DiguGameState | null;
     dropPlayer(roomId: string, playerId: string): DiguGameState | null;
     initiateEndGameVote(roomId: string): DiguGameState | null;
     voteEndGame(roomId: string, playerId: string, voteEnd: boolean): DiguGameState | null;

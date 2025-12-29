@@ -8,9 +8,11 @@ import { DiguGameService } from './digu-game.service';
 import { GameHistoryService } from './game-history.service';
 import { GameHistory } from './game-history.entity';
 import { GameHistoryController } from './game-history.controller';
+import { DiguGame, DiguGamePlayer, DiguRound } from './digu-entities';
+import { DiguHistoryService } from './digu-history.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([GameHistory])],
+  imports: [TypeOrmModule.forFeature([GameHistory, DiguGame, DiguGamePlayer, DiguRound])],
   controllers: [GameHistoryController],
   providers: [
     GameGateway,
@@ -19,7 +21,8 @@ import { GameHistoryController } from './game-history.controller';
     DiguService,
     DiguGameService,
     GameHistoryService,
+    DiguHistoryService,
   ],
-  exports: [GameHistoryService],
+  exports: [GameHistoryService, DiguHistoryService],
 })
 export class GameModule {}

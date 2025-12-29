@@ -203,10 +203,18 @@ export class DiguService {
     const isBigDigu = this.checkBigDigu(knocker);
     const isGin = knockerDeadwood === 0;
 
-    // Winner gets fixed 100 points
-    scores[knocker.id] = 100;
-    bonuses[knocker.id].push('Winner! (+100)');
-    this.addLog(gameState, `✨ ${knocker.name} wins! (+100 points)`);
+    // Calculate Winner's Meld Points
+    const winnerMeldPoints = knocker.melds.reduce((sum, meld) => {
+      return sum + meld.cards.reduce((cardSum, card) => cardSum + this.cardValues[card.rank], 0);
+    }, 0);
+
+    // Winner gets: Meld Points + 100 Bonus
+    const winnerTotalRoundPoints = winnerMeldPoints + 100;
+    scores[knocker.id] = winnerTotalRoundPoints;
+    
+    bonuses[knocker.id].push(`Melds: ${winnerMeldPoints}`);
+    bonuses[knocker.id].push('Winner Bonus (+100)');
+    this.addLog(gameState, `✨ ${knocker.name} wins! (+${winnerTotalRoundPoints} points)`);
 
     // Calculate other players' scores
     let winnerId = knocker.id;

@@ -8,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { GameModule } from './game/game.module';
 import { User } from './users/user.entity';
 import { GameHistory } from './game/game-history.entity';
+import { DiguGame, DiguGamePlayer, DiguRound } from './game/digu-entities';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { GameHistory } from './game/game-history.entity';
         username: configService.get<string>('DATABASE_USER'),
         password: configService.get<string>('DATABASE_PASSWORD'),
         database: configService.get<string>('DATABASE_NAME'),
-        entities: [User, GameHistory],
+        entities: [User, GameHistory, DiguGame, DiguGamePlayer, DiguRound],
         synchronize: false, // Changed to false - use migrations instead
         logging: false,
       }),

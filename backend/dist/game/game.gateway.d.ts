@@ -72,6 +72,7 @@ export declare class GameGateway implements OnGatewayConnection, OnGatewayDiscon
     }, client: Socket): void;
     diguKnock(data: {
         roomId: string;
+        melds?: any[];
     }, client: Socket): void;
     diguDrop(data: {
         roomId: string;
@@ -83,4 +84,8 @@ export declare class GameGateway implements OnGatewayConnection, OnGatewayDiscon
     diguStartNewRound(data: {
         roomId: string;
     }): void;
+    sendEmote(data: {
+        roomId: string;
+        emoji: string;
+    }, client: Socket): void;
 }

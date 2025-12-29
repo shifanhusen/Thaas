@@ -107,10 +107,15 @@ let DiguGameService = class DiguGameService {
             player.hand.push(room.deck.pop());
         }
         else {
-            const topCard = room.discardPile.pop();
-            room.deck = this.diguService.shuffle([...room.discardPile]);
-            room.discardPile = [topCard];
-            player.hand.push(room.deck.pop());
+            if (room.discardPile.length > 1) {
+                const topCard = room.discardPile.pop();
+                room.deck = this.diguService.shuffle([...room.discardPile]);
+                room.discardPile = [topCard];
+                player.hand.push(room.deck.pop());
+            }
+            else {
+                return null;
+            }
         }
         return room;
     }
@@ -136,12 +141,17 @@ let DiguGameService = class DiguGameService {
         player.melds = melds.filter(meld => this.diguService.validateMeld(meld.cards).isValid);
         return room;
     }
-    knock(roomId, playerId) {
+    knock(roomId, playerId, melds) {
         const room = this.rooms.get(roomId);
         if (!room)
             return null;
         const player = room.players.find(p => p.id === playerId);
-        if (!player || !this.diguService.canKnock(player))
+        if (!player)
+            return null;
+        if (melds && Array.isArray(melds)) {
+            player.melds = melds.filter(meld => this.diguService.validateMeld(meld.cards).isValid);
+        }
+        if (!this.diguService.canKnock(player))
             return null;
         const result = this.diguService.processKnock(room, playerId);
         room.gameStatus = 'roundEnd';
@@ -191,8 +201,9 @@ let DiguGameService = class DiguGameService {
         if (!room)
             return null;
         room.endGameVotes[playerId] = voteEnd;
-        const activePlayers = room.players.filter(p => !p.hasDropped);
-        if (Object.keys(room.endGameVotes).length === activePlayers.length) {
+        const humanPlayers = room.players.filter(p => !p.hasDropped && !p.isBot);
+        const humanVotes = Object.keys(room.endGameVotes).filter(id => humanPlayers.some(p => p.id === id));
+        if (humanVotes.length === humanPlayers.length) {
             this.processEndGameVote(roomId);
         }
         return room;
@@ -206,9 +217,10 @@ let DiguGameService = class DiguGameService {
             clearTimeout(timer);
             this.voteTimers.delete(roomId);
         }
-        const votes = Object.values(room.endGameVotes);
-        const endVotes = votes.filter(v => v === true).length;
-        const continueVotes = votes.filter(v => v === false).length;
+        const botCount = room.players.filter(p => p.isBot && !p.hasDropped).length;
+        const humanVotes = Object.values(room.endGameVotes);
+        const endVotes = humanVotes.filter(v => v === true).length + botCount;
+        const continueVotes = humanVotes.filter(v => v === false).length;
         if (endVotes > continueVotes) {
             room.gameStatus = 'finished';
             room.gameLog.push(`🏁 Game ended by majority vote (${endVotes}-${continueVotes})`);

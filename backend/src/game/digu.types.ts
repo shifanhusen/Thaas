@@ -38,6 +38,7 @@ export interface DiguGameState {
   endGameVotes: { [playerId: string]: boolean }; // true = end, false = continue
   endGameVoteTimer: number | null;
   targetScore: number; // 100 points to win
+  dbGameId?: string; // Database ID for the game session
 }
 
 export interface MeldValidation {
