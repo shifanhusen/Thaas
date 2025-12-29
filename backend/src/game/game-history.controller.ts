@@ -6,9 +6,9 @@ export class GameHistoryController {
   constructor(private gameHistoryService: GameHistoryService) {}
 
   @Get()
-  async getHistory(@Query('limit') limit?: string) {
+  async getHistory(@Query('limit') limit?: string, @Query('gameType') gameType?: string) {
     const limitNum = limit ? parseInt(limit) : 10;
-    return this.gameHistoryService.getGameHistory(limitNum);
+    return this.gameHistoryService.getGameHistory(limitNum, gameType);
   }
 
   @Get(':id')

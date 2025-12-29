@@ -34,11 +34,15 @@ export class GameHistoryService {
     return this.gameHistoryRepository.save(gameHistory);
   }
 
-  async getGameHistory(limit: number = 10): Promise<GameHistory[]> {
-    return this.gameHistoryRepository.find({
+  async getGameHistory(limit: number = 10, gameType?: string): Promise<GameHistory[]> {
+    const query: any = {
       order: { createdAt: 'DESC' },
       take: limit,
-    });
+    };
+    if (gameType) {
+      query.where = { gameType };
+    }
+    return this.gameHistoryRepository.find(query);
   }
 
   async getGameById(id: number): Promise<GameHistory | null> {

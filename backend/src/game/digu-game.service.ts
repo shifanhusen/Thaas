@@ -249,6 +249,41 @@ export class DiguGameService {
     return room;
   }
 
+  // Force end game by player
+  forceEndGame(roomId: string, playerId: string): DiguGameState | null {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+
+    const player = room.players.find(p => p.id === playerId);
+    if (!player) return null;
+
+    room.gameStatus = 'finished';
+    room.gameLog.push(`🛑 Game ended by ${player.name}`);
+
+    if (room.dbGameId) {
+      // Determine winner based on current scores
+      const winner = room.players.reduce((prev, current) => (prev.totalScore > current.totalScore) ? prev : current);
+      this.historyService.finishGame(
+        room.dbGameId,
+        winner.id,
+        winner.name,
+        room.players,
+        room.currentRound
+      );
+    }
+    
+    // Clear any vote timers
+    const timer = this.voteTimers.get(roomId);
+    if (timer) {
+      clearTimeout(timer);
+      this.voteTimers.delete(roomId);
+    }
+    room.endGameVoteTimer = null;
+    room.endGameVotes = {};
+
+    return room;
+  }
+
   // Initiate end game vote
   initiateEndGameVote(roomId: string): DiguGameState | null {
     const room = this.rooms.get(roomId);

@@ -241,6 +241,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('diguForceEndGame')
+  diguForceEndGame(@MessageBody() data: { roomId: string }, @ConnectedSocket() client: Socket) {
+    const room = this.diguGameService.forceEndGame(data.roomId, client.id);
+    if (room) {
+      this.server.to(data.roomId).emit('gameStateUpdate', room);
+    }
+  }
+
   @SubscribeMessage('diguStartNewRound')
   diguStartNewRound(@MessageBody() data: { roomId: string }) {
     const room = this.diguGameService.startNewRound(data.roomId);

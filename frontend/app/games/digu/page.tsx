@@ -97,18 +97,72 @@ function PlayingCard({
   );
 }
 
+// --- HISTORY MODAL COMPONENT ---
+function HistoryModal({ onClose }: { onClose: () => void }) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/game-history?limit=20&gameType=digu`)
+      .then(res => res.json())
+      .then(data => {
+        setHistory(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error(err);
+        setLoading(false);
+      });
+  }, []);
+
+  return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-[#0f172a] w-full max-w-4xl max-h-[80vh] rounded-2xl border border-gray-700 flex flex-col shadow-2xl">
+        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-white">Digu Game History</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {loading ? (
+            <div className="text-center text-gray-400">Loading history...</div>
+          ) : history.length === 0 ? (
+            <div className="text-center text-gray-400">No Digu games recorded yet.</div>
+          ) : (
+            history.map((game) => (
+              <div key={game.id} className="bg-[#1e293b] p-4 rounded-xl border border-gray-700">
+                <div className="flex justify-between mb-2">
+                  <span className="font-bold text-purple-400">Room {game.roomId}</span>
+                  <span className="text-xs text-gray-400">{new Date(game.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {game.players.map((p: any) => (
+                    <span key={p.id} className="bg-black/30 px-2 py-1 rounded text-xs text-gray-300">
+                      {p.name} {game.winnerId === p.id && '👑'}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- ROUND END VIEW COMPONENT ---
 function RoundEndView({ 
   gameState, 
   myPlayerId, 
   onNextRound, 
-  onVote,
+  onEndGame,
   voteTimer 
 }: { 
   gameState: DiguGameState, 
   myPlayerId?: string, 
   onNextRound: () => void, 
-  onVote: (vote: boolean) => void,
+  onEndGame: () => void,
   voteTimer: number | null
 }) {
   const myIndex = gameState.players.findIndex(p => p.id === myPlayerId);
@@ -167,18 +221,15 @@ function RoundEndView({
              <button onClick={() => window.location.reload()} className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-xl">
                EXIT TO LOBBY
              </button>
-          ) : gameState.endGameVoteTimer ? (
-            <div className="space-y-2">
-              <p className="text-yellow-200 font-bold text-sm">Vote to End Game? ({voteTimer}s)</p>
-              <div className="flex gap-2">
-                <button onClick={() => onVote(true)} className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 rounded-lg text-sm">END</button>
-                <button onClick={() => onVote(false)} className="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 rounded-lg text-sm">CONTINUE</button>
-              </div>
-            </div>
           ) : (
-            <button onClick={onNextRound} className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/20 animate-pulse">
-              START NEXT ROUND
-            </button>
+            <div className="flex gap-4 w-full">
+               <button onClick={onEndGame} className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-red-500/20">
+                 END GAME
+               </button>
+               <button onClick={onNextRound} className="flex-1 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-500/20 animate-pulse">
+                 NEXT ROUND
+               </button>
+            </div>
           )}
         </motion.div>
       </div>
@@ -277,6 +328,7 @@ export default function DiguGamePage() {
   const { playSound } = useGameSounds();
   const [lastAction, setLastAction] = useState<string | null>(null);
   const [showChat, setShowChat] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [activeEmotes, setActiveEmotes] = useState<{playerId: string, emoji: string, id: number}[]>([]);
 
   // Sound & Log Effect
@@ -544,6 +596,13 @@ export default function DiguGamePage() {
     socket.emit('diguVoteEndGame', { roomId: gameState.roomId, voteEnd });
   };
 
+  const forceEndGame = () => {
+    if (!socket || !gameState) return;
+    if (confirm('Are you sure you want to end the game for everyone?')) {
+      socket.emit('diguForceEndGame', { roomId: gameState.roomId });
+    }
+  };
+
   const startNewRound = () => {
     if (!socket || !gameState) return;
     socket.emit('diguStartNewRound', { roomId: gameState.roomId });
@@ -656,6 +715,7 @@ export default function DiguGamePage() {
       <div className="bg-black/40 backdrop-blur-md border-b border-white/10 p-4 flex justify-between items-center z-20">
         <div className="flex items-center gap-4">
           <Link href="/" className="text-xs font-bold text-gray-400 hover:text-white">← EXIT</Link>
+          <button onClick={() => setShowHistory(true)} className="text-xs font-bold text-gray-400 hover:text-white ml-4">HISTORY</button>
           <div className="bg-[#1e293b] px-3 py-1 rounded border border-gray-700">
             <span className="text-xs text-gray-400">ROOM:</span> <span className="font-mono font-bold">{gameState.roomId}</span>
           </div>
@@ -968,10 +1028,12 @@ export default function DiguGamePage() {
           gameState={gameState}
           myPlayerId={socket?.id}
           onNextRound={startNewRound}
-          onVote={voteEndGame}
+          onEndGame={forceEndGame}
           voteTimer={voteTimer}
         />
       )}
+
+      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} />}
     </div>
   );
 }

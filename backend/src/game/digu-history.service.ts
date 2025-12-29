@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DiguGame, DiguGamePlayer, DiguRound } from './digu-entities';
 import { DiguPlayer } from './digu.types';
+import { GameHistory } from './game-history.entity';
 
 @Injectable()
 export class DiguHistoryService {
@@ -13,6 +14,8 @@ export class DiguHistoryService {
     private playerRepo: Repository<DiguGamePlayer>,
     @InjectRepository(DiguRound)
     private roundRepo: Repository<DiguRound>,
+    @InjectRepository(GameHistory)
+    private unifiedHistoryRepo: Repository<GameHistory>,
   ) {}
 
   async createGame(roomId: string): Promise<string> {
@@ -57,5 +60,28 @@ export class DiguHistoryService {
     }));
 
     await this.playerRepo.save(playerEntities);
+
+    // Save to unified history
+    const game = await this.gameRepo.findOne({ where: { id: gameId } });
+    if (game) {
+        const duration = Math.floor((new Date().getTime() - game.startTime.getTime()) / 1000);
+        
+        const historyPlayers = players.map(p => ({
+            id: p.id,
+            name: p.name,
+            position: p.id === winnerId ? 1 : 2
+        }));
+
+        const unifiedHistory = this.unifiedHistoryRepo.create({
+            roomId: game.roomId,
+            gameType: 'digu',
+            players: historyPlayers,
+            gameLog: [], 
+            totalRounds,
+            duration,
+            gameStatus: 'completed'
+        });
+        await this.unifiedHistoryRepo.save(unifiedHistory);
+    }
   }
 }

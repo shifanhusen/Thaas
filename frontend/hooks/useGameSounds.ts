@@ -6,7 +6,7 @@ export const useGameSounds = () => {
   useEffect(() => {
     // Preload sounds
     const sounds = {
-      draw: '/sounds/draw.mp3',
+      draw: '/sounds/draw1.mp3',
       place: '/sounds/place.mp3',
       knock: '/sounds/knock.mp3',
       win: '/sounds/win.mp3',
